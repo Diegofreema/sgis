@@ -1,7 +1,18 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  /**
+   * Cache Components (Next.js 16)
+   * Enables `'use cache'` directive + PPR model.
+   * Data fetches are dynamic by default; opt-in to caching with `'use cache'`.
+   */
+  cacheComponents: true,
+
+  images: {
+    remotePatterns: [
+      { protocol: "https", hostname: "**" },
+    ],
+  },
 };
 
 export default nextConfig;

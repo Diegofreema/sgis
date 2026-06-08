@@ -1,26 +1,306 @@
+/* ─── Sankt Georg Brand Fonts ─────────────────────────────────── */
+/* Must be first — CSS @import rules must precede all other rules  */
+@import url("https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Inter:wght@300;400;500;600;700&display=swap");
+
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@custom-variant dark (&:is(.dark *));
 
+/* ─── Theme Mapping ──────────────────────────────────────────── */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Playfair Display", ui-serif, Georgia, serif;
+  --font-heading: "Playfair Display", ui-serif, Georgia, serif;
   --font-mono: var(--font-geist-mono);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.85);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* ─── Light Mode: Sankt Georg Brand Palette ──────────────────── */
+:root {
+  /* Brand primary: deep burgundy #8B3A42 */
+  --primary: oklch(0.41 0.108 14.5);
+  --primary-foreground: oklch(1 0 0);
+
+  /* Warm blush secondary */
+  --secondary: oklch(0.95 0.014 14.5);
+  --secondary-foreground: oklch(0.22 0.055 14.5);
+
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.1 0 0);
+
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.1 0 0);
+
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.1 0 0);
+
+  /* Soft warm muted */
+  --muted: oklch(0.97 0.004 14.5);
+  --muted-foreground: oklch(0.48 0.028 14.5);
+
+  /* Light blush accent */
+  --accent: oklch(0.93 0.022 14.5);
+  --accent-foreground: oklch(0.22 0.055 14.5);
+
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(1 0 0);
+
+  --success: oklch(0.53 0.15 145);
+  --success-foreground: oklch(1 0 0);
+
+  --warning: oklch(0.76 0.17 74);
+  --warning-foreground: oklch(0.1 0 0);
+
+  /* Soft blush borders */
+  --border: oklch(0.91 0.018 14.5);
+  --input: oklch(0.91 0.018 14.5);
+  --ring: oklch(0.41 0.108 14.5);
+
+  /* Chart palette: harmonious warm tones */
+  --chart-1: oklch(0.41 0.108 14.5);
+  --chart-2: oklch(0.58 0.11 14.5);
+  --chart-3: oklch(0.72 0.09 55);
+  --chart-4: oklch(0.65 0.12 200);
+  --chart-5: oklch(0.55 0.13 265);
+
+  --radius: 0.75rem;
+
+  /* Sidebar (slightly warm off-white) */
+  --sidebar: oklch(0.985 0.005 14.5);
+  --sidebar-foreground: oklch(0.22 0.055 14.5);
+  --sidebar-primary: oklch(0.41 0.108 14.5);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.93 0.022 14.5);
+  --sidebar-accent-foreground: oklch(0.22 0.055 14.5);
+  --sidebar-border: oklch(0.91 0.018 14.5);
+  --sidebar-ring: oklch(0.41 0.108 14.5);
+}
+
+/* ─── Dark Mode: Warm deep burgundy palette ──────────────────── */
+.dark {
+  /* Brand primary (lighter for dark mode): #C96E78 */
+  --primary: oklch(0.60 0.11 14.5);
+  --primary-foreground: oklch(0.14 0.045 14.5);
+
+  --background: oklch(0.10 0.018 14.5);
+  --foreground: oklch(0.98 0.005 14.5);
+
+  --card: oklch(0.13 0.022 14.5);
+  --card-foreground: oklch(0.98 0.005 14.5);
+
+  --popover: oklch(0.13 0.022 14.5);
+  --popover-foreground: oklch(0.98 0.005 14.5);
+
+  --secondary: oklch(0.18 0.035 14.5);
+  --secondary-foreground: oklch(0.98 0.005 14.5);
+
+  --muted: oklch(0.16 0.025 14.5);
+  --muted-foreground: oklch(0.68 0.04 14.5);
+
+  --accent: oklch(0.22 0.045 14.5);
+  --accent-foreground: oklch(0.98 0.005 14.5);
+
+  --destructive: oklch(0.65 0.21 25);
+  --destructive-foreground: oklch(1 0 0);
+
+  --success: oklch(0.62 0.17 145);
+  --success-foreground: oklch(0.08 0.025 145);
+
+  --warning: oklch(0.82 0.18 74);
+  --warning-foreground: oklch(0.12 0.02 74);
+
+  --border: oklch(0.24 0.04 14.5);
+  --input: oklch(0.24 0.04 14.5);
+  --ring: oklch(0.60 0.11 14.5);
+
+  --chart-1: oklch(0.60 0.11 14.5);
+  --chart-2: oklch(0.72 0.09 14.5);
+  --chart-3: oklch(0.75 0.12 55);
+  --chart-4: oklch(0.68 0.14 200);
+  --chart-5: oklch(0.62 0.15 265);
+
+  --sidebar: oklch(0.13 0.022 14.5);
+  --sidebar-foreground: oklch(0.98 0.005 14.5);
+  --sidebar-primary: oklch(0.60 0.11 14.5);
+  --sidebar-primary-foreground: oklch(0.14 0.045 14.5);
+  --sidebar-accent: oklch(0.22 0.045 14.5);
+  --sidebar-accent-foreground: oklch(0.98 0.005 14.5);
+  --sidebar-border: oklch(0.24 0.04 14.5);
+  --sidebar-ring: oklch(0.60 0.11 14.5);
+}
+
+/* ─── Base Styles ─────────────────────────────────────────────── */
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    @apply scroll-smooth antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-serif tracking-tight;
+  }
+
+  /* Smooth focus rings */
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-ring;
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-muted;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-border rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/40;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* ─── Typography Utilities ───────────────────────────────────── */
+@layer utilities {
+  .text-display {
+    font-size: clamp(3rem, 7vw, 6rem);
+    line-height: 1.05;
+    @apply font-serif font-bold tracking-tight;
+  }
+
+  .text-h1 {
+    font-size: clamp(2.5rem, 5vw, 4.5rem);
+    line-height: 1.1;
+    @apply font-serif font-semibold tracking-tight;
+  }
+
+  .text-h2 {
+    font-size: clamp(2rem, 4vw, 3.25rem);
+    line-height: 1.15;
+    @apply font-serif font-semibold tracking-tight;
+  }
+
+  .text-h3 {
+    font-size: clamp(1.5rem, 3vw, 2.25rem);
+    line-height: 1.2;
+    @apply font-serif font-medium tracking-tight;
+  }
+
+  .text-h4 {
+    font-size: 1.5rem;
+    line-height: 1.3;
+    @apply font-serif font-medium;
+  }
+
+  /* Glass effect utility */
+  .glass {
+    @apply bg-background/60 backdrop-blur-md border border-border/40;
+  }
+
+  .glass-card {
+    @apply bg-card/80 backdrop-blur-md border border-border/50 shadow-lg;
+  }
+
+  /* Gradient text utility */
+  .gradient-text {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, var(--color-primary), oklch(0.65 0.08 14.5));
+  }
+
+  /* Soft shadow utilities */
+  .shadow-brand-sm {
+    box-shadow: 0 1px 2px oklch(0.41 0.108 14.5 / 0.06);
+  }
+
+  .shadow-brand-md {
+    box-shadow: 0 8px 24px oklch(0.41 0.108 14.5 / 0.12);
+  }
+
+  .shadow-brand-lg {
+    box-shadow: 0 20px 50px oklch(0.41 0.108 14.5 / 0.18);
+  }
+
+  /* Section spacing */
+  .section-padding {
+    @apply py-20 md:py-28 lg:py-32;
+  }
+
+  .container-padding {
+    @apply px-4 sm:px-6 lg:px-8;
+  }
+
+  /*
+   * Cap the Tailwind container at 80rem (1280px) on large screens.
+   * Tailwind v4 generates container breakpoint rules up to max-width: 96rem
+   * (1536px), which looks stretched on wide monitors. This override ensures
+   * the content stays comfortably readable — since it lives after Tailwind's
+   * generated utilities in the same @layer, it wins the cascade.
+   */
+  .container {
+    max-width: 80rem;
+  }
+
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    .motion-safe\:animate-none {
+      animation: none !important;
+      transition: none !important;
+    }
+  }
 }
