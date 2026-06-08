@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { GraduationCap, Mail, Phone, MapPin, Globe } from 'lucide-react';
 import { siteConfig } from '@/config/site';
 import { publicNav } from '@/config/navigation';
+import { BrandLogo } from '../shared/brand-logo';
 
 const footerLinks = {
   school: publicNav,
@@ -23,7 +24,7 @@ export function PublicFooter() {
           <div className="space-y-4">
             <div className="flex items-center gap-2.5">
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-                <GraduationCap className="h-5 w-5" />
+                <BrandLogo />
               </div>
               <div>
                 <p className="font-serif font-semibold text-sm text-foreground">
