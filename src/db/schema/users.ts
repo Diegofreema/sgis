@@ -35,6 +35,8 @@ export const profiles = pgTable(
     passwordChangedAt: timestamp("password_changed_at", { withTimezone: true }),
     // Extended profile fields
     previousSchool: text("previous_school"),
+    state: text("state"),
+    lga: text("lga"),
     guardianName: text("guardian_name"),
     guardianPhone: text("guardian_phone"),
     guardianEmail: text("guardian_email"),

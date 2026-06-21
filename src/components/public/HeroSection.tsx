@@ -9,20 +9,25 @@ import {
   useScroll,
   useTransform,
 } from 'framer-motion';
-import { ArrowRight, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
+import {
+  ArrowRight,
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useReducedMotion } from '@/hooks/use-reduced-motion';
 
 /* ─── Config ────────────────────────────────────────────────────── */
 const SLIDE_DURATION = 6000; // ms per slide
-const EASE_C = [0.76, 0, 0.24, 1] as const;  // cinematic
+const EASE_C = [0.76, 0, 0.24, 1] as const; // cinematic
 const EASE_O = [0.25, 0.46, 0.45, 0.94] as const; // ease-out
 
 /* ─── Slides — swap images for real school photos ───────────────── */
 const slides = [
   {
     // TODO: replace with actual SGIS campus photo
-    image: 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?w=1920&q=80&fit=crop&crop=center',
+    image: '/air-view.webp',
     badge: 'Admissions Open · 2025–2026',
     lines: ['Where Excellence', 'Meets'],
     accent: 'Global Vision',
@@ -32,7 +37,7 @@ const slides = [
   },
   {
     // TODO: replace with Nursery & Primary section photo
-    image: 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=1920&q=80&fit=crop&crop=center',
+    image: '/sgi-1.webp',
     badge: 'Foundation Years · Nursery & Primary',
     lines: ['Building Futures,', 'One'],
     accent: 'Child at a Time',
@@ -42,7 +47,7 @@ const slides = [
   },
   {
     // TODO: replace with Secondary section photo
-    image: 'https://images.unsplash.com/photo-1427504494785-3a9ca7044f45?w=1920&q=80&fit=crop&crop=center',
+    image: '/sgi-2.webp',
     badge: 'Secondary Section · Academic Excellence',
     lines: ["Shaping Tomorrow's"],
     accent: 'Leaders Today',
@@ -91,7 +96,8 @@ export function HeroSection() {
     (i: number) => {
       setSlide((prev) => ({ index: i, dir: i >= prev.index ? 1 : -1 }));
       clearTimer();
-      if (!prefersReduced) timerRef.current = setInterval(advance, SLIDE_DURATION);
+      if (!prefersReduced)
+        timerRef.current = setInterval(advance, SLIDE_DURATION);
     },
     [advance, clearTimer, prefersReduced],
   );
@@ -134,7 +140,10 @@ export function HeroSection() {
               className="absolute inset-0"
               initial={{ scale: 1.08 }}
               animate={{ scale: 1.0 }}
-              transition={{ duration: (SLIDE_DURATION + 1000) / 1000, ease: 'linear' }}
+              transition={{
+                duration: (SLIDE_DURATION + 1000) / 1000,
+                ease: 'linear',
+              }}
             >
               <Image
                 src={slide.image}
@@ -176,8 +185,12 @@ export function HeroSection() {
             exit="exit"
             variants={{
               hidden: {},
-              show: { transition: { staggerChildren: 0.065, delayChildren: 0.18 } },
-              exit: { transition: { staggerChildren: 0.03, staggerDirection: -1 } },
+              show: {
+                transition: { staggerChildren: 0.065, delayChildren: 0.18 },
+              },
+              exit: {
+                transition: { staggerChildren: 0.03, staggerDirection: -1 },
+              },
             }}
           >
             {/* Badge — flanked by lines */}
@@ -185,7 +198,11 @@ export function HeroSection() {
               className="flex items-center justify-center gap-3"
               variants={{
                 hidden: { opacity: 0, y: -10 },
-                show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: EASE_O } },
+                show: {
+                  opacity: 1,
+                  y: 0,
+                  transition: { duration: 0.5, ease: EASE_O },
+                },
                 exit: { opacity: 0, transition: { duration: 0.15 } },
               }}
             >
@@ -285,7 +302,11 @@ export function HeroSection() {
               className="text-base sm:text-lg leading-relaxed text-white/80 max-w-2xl mx-auto"
               variants={{
                 hidden: { opacity: 0, y: 12 },
-                show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: EASE_O } },
+                show: {
+                  opacity: 1,
+                  y: 0,
+                  transition: { duration: 0.6, ease: EASE_O },
+                },
                 exit: { opacity: 0, transition: { duration: 0.15 } },
               }}
             >
@@ -297,7 +318,11 @@ export function HeroSection() {
               className="flex flex-wrap items-center justify-center gap-3 pt-1"
               variants={{
                 hidden: { opacity: 0, y: 12 },
-                show: { opacity: 1, y: 0, transition: { duration: 0.55, ease: EASE_O } },
+                show: {
+                  opacity: 1,
+                  y: 0,
+                  transition: { duration: 0.55, ease: EASE_O },
+                },
                 exit: { opacity: 0, transition: { duration: 0.15 } },
               }}
             >
@@ -336,8 +361,18 @@ export function HeroSection() {
       ─────────────────────────────────────────────────────────── */}
       {(
         [
-          { i: (index - 1 + slides.length) % slides.length, Icon: ChevronLeft, side: 'left-4 md:left-6', label: 'Previous slide' },
-          { i: (index + 1) % slides.length, Icon: ChevronRight, side: 'right-4 md:right-6', label: 'Next slide' },
+          {
+            i: (index - 1 + slides.length) % slides.length,
+            Icon: ChevronLeft,
+            side: 'left-4 md:left-6',
+            label: 'Previous slide',
+          },
+          {
+            i: (index + 1) % slides.length,
+            Icon: ChevronRight,
+            side: 'right-4 md:right-6',
+            label: 'Next slide',
+          },
         ] as const
       ).map(({ i, Icon, side, label }) => (
         <button
@@ -425,7 +460,10 @@ export function HeroSection() {
                     className="absolute inset-0 rounded-full origin-left bg-white"
                     initial={{ scaleX: 0 }}
                     animate={{ scaleX: 1 }}
-                    transition={{ duration: SLIDE_DURATION / 1000, ease: 'linear' }}
+                    transition={{
+                      duration: SLIDE_DURATION / 1000,
+                      ease: 'linear',
+                    }}
                   />
                 )}
               </motion.button>
@@ -438,7 +476,8 @@ export function HeroSection() {
             animate={prefersReduced ? {} : { y: [0, 5, 0] }}
             transition={{ repeat: Infinity, duration: 1.9, ease: 'easeInOut' }}
             onClick={() => {
-              const next = sectionRef.current?.nextElementSibling as HTMLElement | null;
+              const next = sectionRef.current
+                ?.nextElementSibling as HTMLElement | null;
               next?.scrollIntoView({ behavior: 'smooth' });
             }}
             aria-label="Scroll to next section"

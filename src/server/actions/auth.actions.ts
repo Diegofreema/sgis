@@ -17,6 +17,7 @@ import {
   markPasswordChanged,
   markProfileEmailVerified,
 } from "@/server/auth/profile-state";
+import { logActivity } from "@/lib/audit";
 
 const registerSchema = z.object({
   email: z.string().email(),
@@ -57,6 +58,8 @@ const updateProfileSchema = z.object({
   gender: z.enum(["male", "female", "other"]).nullable().optional(),
   address: z.string().optional(),
   previousSchool: z.string().optional(),
+  state: z.string().optional(),
+  lga: z.string().optional(),
   guardianName: z.string().optional(),
   guardianPhone: z.string().optional(),
   guardianEmail: z
@@ -170,6 +173,14 @@ export async function register(
       });
   }
 
+  if (data.user) {
+    await logActivity({
+      action: "user.registered",
+      entityType: "profile",
+      metadata: { email, role: "parent" },
+    });
+  }
+
   return {
     success: true,
     data: {
@@ -227,6 +238,14 @@ export async function login(
       error: "Your profile could not be found. Please contact support.",
     };
   }
+
+  await logActivity({
+    actorId: profile.id,
+    actorRole: profile.role,
+    action: "user.login",
+    entityType: "profile",
+    entityId: profile.id,
+  });
 
   return {
     success: true,
@@ -303,6 +322,15 @@ export async function updatePassword(
   }
 
   await markPasswordChanged(profile.authUserId);
+
+  await logActivity({
+    actorId: profile.id,
+    actorRole: profile.role,
+    action: "password.changed",
+    entityType: "profile",
+    entityId: profile.id,
+  });
+
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/profile");
   revalidatePath("/dashboard/students");
@@ -347,12 +375,22 @@ export async function updateProfile(
       gender: parsed.data.gender ?? null,
       address: parsed.data.address || null,
       previousSchool: parsed.data.previousSchool || null,
+      state: parsed.data.state || null,
+      lga: parsed.data.lga || null,
       guardianName: parsed.data.guardianName || null,
       guardianPhone: parsed.data.guardianPhone || null,
       guardianEmail: parsed.data.guardianEmail || null,
       updatedAt: new Date(),
     })
     .where(eq(profiles.id, context.target.id));
+
+  await logActivity({
+    actorId: context.target.id,
+    actorRole: context.target.role,
+    action: "profile.updated",
+    entityType: "profile",
+    entityId: context.target.id,
+  });
 
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/profile");
@@ -420,6 +458,15 @@ export async function createStudentAccount(
       studentName: `${firstName} ${lastName}`.trim(),
       parentName: `${parent.firstName ?? ""} ${parent.lastName ?? ""}`.trim() || "Your parent",
       password: temporaryPassword,
+    });
+
+    await logActivity({
+      actorId: parent.id,
+      actorRole: "parent",
+      action: "student.created",
+      entityType: "profile",
+      entityId: inserted[0].id,
+      metadata: { studentEmail: email },
     });
 
     revalidatePath("/dashboard/students");

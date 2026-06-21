@@ -11,7 +11,13 @@ import type { Announcement } from "@/types/cms";
 import type { ContentStatus } from "@/constants/statuses";
 
 export async function AnnouncementsStream() {
-  const raw = await listPublicAnnouncements(5);
+  let raw;
+  try {
+    raw = await listPublicAnnouncements(5);
+  } catch (error) {
+    console.error("[AnnouncementsStream] Failed to load public announcements", error);
+    return null;
+  }
 
   if (raw.length === 0) return null;
 

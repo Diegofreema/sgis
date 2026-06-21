@@ -18,6 +18,8 @@ export type UserProfile = {
   passwordChangedAt: string | null;
   // Extended profile fields
   previousSchool: string | null;
+  state: string | null;
+  lga: string | null;
   guardianName: string | null;
   guardianPhone: string | null;
   guardianEmail: string | null;

@@ -8,6 +8,7 @@ import { resolveManagedProfileContext } from "@/lib/managed-profile";
 import { canApplyForEntranceExam } from "@/lib/permissions";
 import { getActiveApplicationPeriod } from "@/server/queries/applications.queries";
 import type { ApplicationPeriod } from "@/types/application";
+import { logActivity } from "@/lib/audit";
 
 type ActionResult<T = void> =
   | { success: true; data: T }
@@ -94,7 +95,6 @@ export async function createOrUpdateApplication(
     .limit(1);
 
   if (existing[0]) {
-    // Update existing
     await db
       .update(applications)
       .set({
@@ -106,6 +106,14 @@ export async function createOrUpdateApplication(
         updatedAt: new Date(),
       })
       .where(eq(applications.id, existing[0].id));
+
+    await logActivity({
+      actorId: context.target.id,
+      actorRole: context.target.role,
+      action: "application.updated",
+      entityType: "application",
+      entityId: existing[0].id,
+    });
 
     return { success: true, data: { applicationId: existing[0].id } };
   }
@@ -124,6 +132,15 @@ export async function createOrUpdateApplication(
       status: "draft",
     })
     .returning({ id: applications.id });
+
+  await logActivity({
+    actorId: context.target.id,
+    actorRole: context.target.role,
+    action: "application.created",
+    entityType: "application",
+    entityId: newApp.id,
+    metadata: { periodId: period.id },
+  });
 
   return { success: true, data: { applicationId: newApp.id } };
 }
@@ -163,6 +180,14 @@ export async function submitApplication(
     .set({ status: "submitted", submittedAt: new Date(), updatedAt: new Date() })
     .where(eq(applications.id, applicationId));
 
+  await logActivity({
+    actorId: context.target.id,
+    actorRole: context.target.role,
+    action: "application.submitted",
+    entityType: "application",
+    entityId: applicationId,
+  });
+
   return { success: true, data: undefined };
 }
 
@@ -193,6 +218,15 @@ export async function reviewApplication(
       updatedAt: new Date(),
     })
     .where(eq(applications.id, applicationId));
+
+  await logActivity({
+    actorId: admin.id,
+    actorRole: "admin",
+    action: `application.${parsed.data.status}`,
+    entityType: "application",
+    entityId: applicationId,
+    metadata: { rejectionReason: parsed.data.rejectionReason },
+  });
 
   // Update admin notes on profile if provided
   if (parsed.data.notes) {

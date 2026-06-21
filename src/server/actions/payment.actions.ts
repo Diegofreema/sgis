@@ -8,6 +8,7 @@ import { generateReference } from "@/lib/utils";
 import { ACTIVE_PAYMENT_STATUSES } from "@/constants/payment";
 import type { PaymentPurpose } from "@/constants/payment";
 import { revalidatePath } from "next/cache";
+import { logActivity } from "@/lib/audit";
 
 type ActionResult<T = void> =
   | { success: true; data: T }
@@ -98,6 +99,15 @@ export async function createPaymentRecord(input: {
       );
   }
 
+  await logActivity({
+    actorId: context.target.id,
+    actorRole: context.target.role,
+    action: "payment.created",
+    entityType: "payment",
+    entityId: payment.id,
+    metadata: { purpose: input.purpose, amount: input.amount, currency: input.currency ?? "NGN" },
+  });
+
   revalidatePath("/dashboard/payments");
   revalidatePath("/dashboard/students");
 
@@ -179,6 +189,14 @@ export async function submitPaymentProof(input: {
     })
     .where(eq(payments.id, input.paymentId));
 
+  await logActivity({
+    actorId: context.target.id,
+    actorRole: context.target.role,
+    action: "payment.proof_submitted",
+    entityType: "payment",
+    entityId: input.paymentId,
+  });
+
   revalidatePath("/dashboard/payments");
   revalidatePath("/admin/payments");
   revalidatePath("/dashboard/students");
@@ -237,6 +255,15 @@ export async function approvePayment(
       );
   }
 
+  await logActivity({
+    actorId: admin.id,
+    actorRole: "admin",
+    action: "payment.approved",
+    entityType: "payment",
+    entityId: paymentId,
+    metadata: { adminNote },
+  });
+
   revalidatePath("/admin/payments");
   revalidatePath("/admin/applicants");
   revalidatePath("/dashboard/payments");
@@ -252,7 +279,7 @@ export async function rejectPayment(
   paymentId: string,
   adminNote?: string
 ): Promise<ActionResult> {
-  await requireRole(["admin"]);
+  const admin = await requireRole(["admin"]);
   if (!db) return { success: false, error: "Service unavailable" };
 
   await db
@@ -263,6 +290,15 @@ export async function rejectPayment(
       updatedAt: new Date(),
     })
     .where(eq(payments.id, paymentId));
+
+  await logActivity({
+    actorId: admin.id,
+    actorRole: "admin",
+    action: "payment.rejected",
+    entityType: "payment",
+    entityId: paymentId,
+    metadata: { adminNote },
+  });
 
   revalidatePath("/admin/payments");
   revalidatePath("/dashboard/payments");

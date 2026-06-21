@@ -3,6 +3,7 @@
 import { db, admissionSettings } from "@/db";
 import { requireRole } from "@/lib/auth";
 import { updateTag } from "next/cache";
+import { logActivity } from "@/lib/audit";
 
 type ActionResult<T = void> =
   | { success: true; data: T }
@@ -35,6 +36,14 @@ export async function updateAdmissionSettings(input: {
         updatedAt: new Date(),
       },
     });
+
+  await logActivity({
+    actorId: admin.id,
+    actorRole: "admin",
+    action: "settings.updated",
+    entityType: "admission_settings",
+    metadata: { isOpen: input.isOpen, academicSession: input.academicSession },
+  });
 
   updateTag("admission-settings");
 

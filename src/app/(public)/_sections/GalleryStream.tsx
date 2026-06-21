@@ -14,7 +14,13 @@ async function fetchGalleryPreview() {
 }
 
 export async function GalleryStream() {
-  const raw = await fetchGalleryPreview();
+  let raw;
+  try {
+    raw = await fetchGalleryPreview();
+  } catch (error) {
+    console.error("[GalleryStream] Failed to load gallery preview", error);
+    return null;
+  }
 
   if (raw.length === 0) return null;
 

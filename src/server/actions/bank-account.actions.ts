@@ -4,6 +4,7 @@ import { db, bankAccounts } from "@/db";
 import { eq } from "drizzle-orm";
 import { requireRole } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { logActivity } from "@/lib/audit";
 
 type ActionResult<T = void> =
   | { success: true; data: T }
@@ -40,6 +41,15 @@ export async function createBankAccount(input: {
     })
     .returning({ id: bankAccounts.id });
 
+  await logActivity({
+    actorId: admin.id,
+    actorRole: "admin",
+    action: "bank_account.created",
+    entityType: "bank_account",
+    entityId: account.id,
+    metadata: { bankName: input.bankName, accountNumber: input.accountNumber },
+  });
+
   revalidatePath("/admin/settings");
   revalidatePath("/dashboard/payments");
 
@@ -61,13 +71,21 @@ export async function updateBankAccount(
     isActive?: boolean;
   }
 ): Promise<ActionResult> {
-  await requireRole(["admin"]);
+  const admin = await requireRole(["admin"]);
   if (!db) return { success: false, error: "Service unavailable" };
 
   await db
     .update(bankAccounts)
     .set({ ...input, updatedAt: new Date() })
     .where(eq(bankAccounts.id, id));
+
+  await logActivity({
+    actorId: admin.id,
+    actorRole: "admin",
+    action: "bank_account.updated",
+    entityType: "bank_account",
+    entityId: id,
+  });
 
   revalidatePath("/admin/settings");
   revalidatePath("/dashboard/payments");

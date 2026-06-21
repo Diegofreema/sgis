@@ -21,6 +21,8 @@ export function toUserProfile(p: typeof profiles.$inferSelect): UserProfile {
     requiresPasswordChange: p.requiresPasswordChange,
     passwordChangedAt: p.passwordChangedAt?.toISOString() ?? null,
     previousSchool: p.previousSchool,
+    state: p.state,
+    lga: p.lga,
     guardianName: p.guardianName,
     guardianPhone: p.guardianPhone,
     guardianEmail: p.guardianEmail,

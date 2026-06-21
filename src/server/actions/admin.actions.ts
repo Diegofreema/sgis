@@ -1,6 +1,6 @@
 "use server";
 
-import { db, exams, questions, profiles, galleryItems } from "@/db";
+import { db, exams, questions, profiles, galleryItems, announcements } from "@/db";
 import { eq } from "drizzle-orm";
 import { requireRole } from "@/lib/auth";
 import type { QuestionOptionDb } from "@/db/schema/exams";
@@ -217,6 +217,73 @@ export async function deleteGalleryItem(itemId: string): Promise<ActionResult> {
   if (!db) return { success: false, error: "Service unavailable" };
 
   await db.delete(galleryItems).where(eq(galleryItems.id, itemId));
+
+  return { success: true, data: undefined };
+}
+
+// ─── Announcements ────────────────────────────────────────────────────────────
+
+export async function createAnnouncement(input: {
+  title: string;
+  body: string;
+  excerpt?: string;
+  audience: "public" | "students" | "parents" | "applicants" | "admins";
+  isImportant?: boolean;
+  status?: "draft" | "published";
+}): Promise<ActionResult<{ id: string }>> {
+  const admin = await requireRole(["admin"]);
+  if (!db) return { success: false, error: "Service unavailable" };
+
+  const slugifyMod = await import("slugify");
+  const slugify = slugifyMod.default ?? slugifyMod;
+  const slug = (slugify as (s: string, o?: object) => string)(input.title, { lower: true, strict: true }) + "-" + Date.now();
+
+  const [ann] = await db
+    .insert(announcements)
+    .values({
+      title: input.title,
+      slug,
+      body: input.body,
+      excerpt: input.excerpt ?? null,
+      audience: input.audience,
+      isImportant: input.isImportant ?? false,
+      status: input.status ?? "draft",
+      publishedAt: input.status === "published" ? new Date() : null,
+      createdBy: admin.id,
+    })
+    .returning({ id: announcements.id });
+
+  const { revalidatePath } = await import("next/cache");
+  revalidatePath("/admin/announcements");
+
+  return { success: true, data: { id: ann.id } };
+}
+
+export async function updateAnnouncement(
+  id: string,
+  input: {
+    title?: string;
+    body?: string;
+    excerpt?: string;
+    audience?: "public" | "students" | "parents" | "applicants" | "admins";
+    isImportant?: boolean;
+    status?: "draft" | "published" | "archived";
+  }
+): Promise<ActionResult> {
+  await requireRole(["admin"]);
+  if (!db) return { success: false, error: "Service unavailable" };
+
+  await db
+    .update(announcements)
+    .set({
+      ...input,
+      publishedAt: input.status === "published" ? new Date() : undefined,
+      updatedAt: new Date(),
+    })
+    .where(eq(announcements.id, id));
+
+  const { revalidatePath } = await import("next/cache");
+  revalidatePath("/admin/announcements");
 
   return { success: true, data: undefined };
 }

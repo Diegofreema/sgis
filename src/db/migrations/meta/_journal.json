@@ -29,6 +29,13 @@
       "when": 1780248600000,
       "tag": "0003_lock_server_only_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1781076668708,
+      "tag": "0004_fast_justice",
+      "breakpoints": true
     }
   ]
 }

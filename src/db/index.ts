@@ -15,6 +15,7 @@ import * as announcementsSchema from "./schema/announcements";
 import * as cmsSchema from "./schema/cms";
 import * as gallerySchema from "./schema/gallery";
 import * as settingsSchema from "./schema/settings";
+import * as activityLogsSchema from "./schema/activity_logs";
 
 const schema = {
   ...usersSchema,
@@ -27,6 +28,7 @@ const schema = {
   ...cmsSchema,
   ...gallerySchema,
   ...settingsSchema,
+  ...activityLogsSchema,
 };
 
 // Re-export all schema for convenience
@@ -40,6 +42,7 @@ export * from "./schema/announcements";
 export * from "./schema/cms";
 export * from "./schema/gallery";
 export * from "./schema/settings";
+export * from "./schema/activity_logs";
 
 function createDb() {
   const connectionString = process.env.DATABASE_URL;

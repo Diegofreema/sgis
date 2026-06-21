@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useCallback, useState } from "react";
+import { useEffect, useCallback, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ChevronLeft, ChevronRight, Send } from "lucide-react";
@@ -15,6 +15,8 @@ import { saveAnswer, submitExam } from "@/server/actions/exam.actions";
 import { cn } from "@/lib/utils";
 import type { Exam } from "@/db/schema/exams";
 import type { StudentQuestion } from "@/types/exam";
+
+const ALERT_THRESHOLDS = [300, 60] as const; // 5 min, 1 min
 
 type Props = {
   attemptId: string;
@@ -37,6 +39,7 @@ export function ExamPortalClient({
     currentQuestionIndex,
     localAnswers,
     flaggedQuestions,
+    timerSeconds,
     setCurrentQuestion,
     setAnswer,
     toggleFlag,
@@ -48,6 +51,19 @@ export function ExamPortalClient({
     setExamStatus("in_progress");
     return () => resetExam();
   }, [setExamStatus, resetExam]);
+
+  // Countdown alert toasts at threshold boundaries
+  const alertedRef = useRef<Set<number>>(new Set());
+  useEffect(() => {
+    if (ALERT_THRESHOLDS.includes(timerSeconds as (typeof ALERT_THRESHOLDS)[number]) && !alertedRef.current.has(timerSeconds)) {
+      alertedRef.current.add(timerSeconds);
+      if (timerSeconds === 300) {
+        toast.warning("5 minutes remaining — start wrapping up!");
+      } else if (timerSeconds === 60) {
+        toast.error("1 minute left! Submit now to save your answers.", { duration: 10000 });
+      }
+    }
+  }, [timerSeconds]);
 
   const handleExpire = useCallback(async () => {
     if (autoSubmitting) return;

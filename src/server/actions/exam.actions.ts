@@ -6,6 +6,7 @@ import { eq, and } from "drizzle-orm";
 import { requireAuth, requireRole } from "@/lib/auth";
 import { getAttemptByUser } from "@/server/queries/exams.queries";
 import { EXAM_ATTEMPT_STATUS } from "@/constants/statuses";
+import { logActivity } from "@/lib/audit";
 
 type ActionResult<T = void> =
   | { success: true; data: T }
@@ -81,6 +82,15 @@ export async function startExamAttempt(
       totalMarks: exam[0].totalMarks,
     })
     .returning({ id: examAttempts.id });
+
+  await logActivity({
+    actorId: profile.id,
+    actorRole: profile.role,
+    action: "exam.started",
+    entityType: "exam_attempt",
+    entityId: attempt.id,
+    metadata: { examId, applicationId },
+  });
 
   return { success: true, data: { attemptId: attempt.id } };
 }
@@ -218,7 +228,6 @@ export async function submitExam(attemptId: string): Promise<ActionResult> {
     }
   }
 
-  // Mark attempt as submitted+graded
   await db
     .update(examAttempts)
     .set({
@@ -228,6 +237,15 @@ export async function submitExam(attemptId: string): Promise<ActionResult> {
       updatedAt: new Date(),
     })
     .where(eq(examAttempts.id, attemptId));
+
+  await logActivity({
+    actorId: profile.id,
+    actorRole: profile.role,
+    action: "exam.submitted",
+    entityType: "exam_attempt",
+    entityId: attemptId,
+    metadata: { score: totalScore },
+  });
 
   return { success: true, data: undefined };
 }

@@ -29,6 +29,15 @@ const envSchema = z.object({
   SMTP_FROM_EMAIL: z.string().email().optional(),
   SMTP_FROM_NAME: z.string().min(1).optional(),
   EMAIL_OUTBOX_DIR: z.string().min(1).optional(),
+
+  // Resend
+  RESEND_API_KEY: z.string().min(1).optional(),
+
+  // Maintenance
+  MAINTENANCE_MODE: z
+    .union([z.literal("true"), z.literal("false")])
+    .optional()
+    .transform((v) => v === "true"),
 });
 
 type Env = z.infer<typeof envSchema>;

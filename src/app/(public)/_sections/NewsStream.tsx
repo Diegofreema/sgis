@@ -21,7 +21,13 @@ async function fetchLatestNews() {
 }
 
 export async function NewsStream() {
-  const raw = await fetchLatestNews();
+  let raw;
+  try {
+    raw = await fetchLatestNews();
+  } catch (error) {
+    console.error("[NewsStream] Failed to load latest news", error);
+    return null;
+  }
 
   if (raw.length === 0) return null;
 
