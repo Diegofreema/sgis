@@ -1,6 +1,5 @@
-'use client';
 import Link from 'next/link';
-import { GraduationCap, Mail, Phone, MapPin, Globe } from 'lucide-react';
+import { Mail, Phone, MapPin, Globe } from 'lucide-react';
 import { siteConfig } from '@/config/site';
 import { publicNav } from '@/config/navigation';
 import { BrandLogo } from '../shared/brand-logo';
@@ -139,7 +138,7 @@ export function PublicFooter() {
         {/* Bottom bar */}
         <div className="mt-12 pt-6 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-xs text-muted-foreground">
-            © {new Date().getFullYear()} {siteConfig.name}. All rights reserved.
+            &copy; {siteConfig.name}. All rights reserved.
           </p>
           <div className="flex items-center gap-4">
             <Link
