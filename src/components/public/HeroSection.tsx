@@ -22,6 +22,8 @@ import { useReducedMotion } from '@/hooks/use-reduced-motion';
 const SLIDE_DURATION = 6000; // ms per slide
 const EASE_C = [0.76, 0, 0.24, 1] as const; // cinematic
 const EASE_O = [0.25, 0.46, 0.45, 0.94] as const; // ease-out
+const HERO_IMAGE_SIZES =
+  '(max-width: 640px) 160vw, (max-width: 1024px) 120vw, 100vw';
 
 /* ─── Slides — swap images for real school photos ───────────────── */
 const slides = [
@@ -37,7 +39,7 @@ const slides = [
   },
   {
     // TODO: replace with Nursery & Primary section photo
-    image: '/sgi-1.webp',
+    image: '/sgi-1.jpg.jpeg',
     badge: 'Foundation Years · Nursery & Primary',
     lines: ['Building Futures,', 'One'],
     accent: 'Child at a Time',
@@ -47,7 +49,7 @@ const slides = [
   },
   {
     // TODO: replace with Secondary section photo
-    image: '/sgi-2.webp',
+    image: '/sgi-2.jpg.jpeg',
     badge: 'Secondary Section · Academic Excellence',
     lines: ["Shaping Tomorrow's"],
     accent: 'Leaders Today',
@@ -72,7 +74,7 @@ export function HeroSection() {
     offset: ['start start', 'end start'],
   });
   // Background moves up slower than page scroll (parallax depth)
-  const bgY = useTransform(scrollYProgress, [0, 1], ['0%', '16.67%']);
+  const bgY = useTransform(scrollYProgress, [0, 1], ['0%', '8%']);
   // Content fades and lifts as you scroll away
   const contentOpacity = useTransform(scrollYProgress, [0, 0.55], [1, 0]);
   const contentY = useTransform(scrollYProgress, [0, 0.55], ['0%', '-7%']);
@@ -107,17 +109,18 @@ export function HeroSection() {
   return (
     <section
       ref={sectionRef}
-      className="relative h-screen overflow-hidden"
+      className="relative h-[78svh] min-h-[32rem] overflow-hidden md:h-screen"
       aria-label="Hero carousel"
     >
       {/* ──────────────────────────────────────────────────────────
           Background: parallax container with sliding images
-          Container is 150% tall so parallax Y never shows edges.
+          Mobile uses a shallower overflow buffer so the image stays crisper;
+          desktop keeps the deeper parallax canvas.
       ─────────────────────────────────────────────────────────── */}
       <motion.div
         aria-hidden
-        className="absolute left-0 right-0 pointer-events-none"
-        style={{ top: '-25%', height: '150%', y: bgY }}
+        className="absolute inset-x-0 -top-[10%] h-[120%] pointer-events-none md:-top-[25%] md:h-[150%]"
+        style={{ y: bgY }}
       >
         {/* Sliding images */}
         <AnimatePresence initial={false} custom={dir}>
@@ -138,7 +141,7 @@ export function HeroSection() {
             {/* Ken Burns — subtle zoom over the full slide lifetime */}
             <motion.div
               className="absolute inset-0"
-              initial={{ scale: 1.08 }}
+              initial={{ scale: 1.03 }}
               animate={{ scale: 1.0 }}
               transition={{
                 duration: (SLIDE_DURATION + 1000) / 1000,
@@ -150,7 +153,8 @@ export function HeroSection() {
                 alt=""
                 fill
                 priority={index === 0}
-                sizes="100vw"
+                quality={88}
+                sizes={HERO_IMAGE_SIZES}
                 className="object-cover object-center"
               />
             </motion.div>
