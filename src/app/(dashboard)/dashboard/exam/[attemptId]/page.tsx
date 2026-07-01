@@ -30,7 +30,7 @@ export default async function ExamAttemptPage({ params }: Props) {
 
   if (!attempt) redirect("/dashboard/exam");
 
-  if (attempt.status === "submitted" || attempt.status === "graded") {
+  if (attempt.status === "submitted" || attempt.status === "graded" || attempt.status === "expired") {
     redirect("/dashboard/results");
   }
 
@@ -40,7 +40,7 @@ export default async function ExamAttemptPage({ params }: Props) {
   }
 
   // Fetch exam questions WITHOUT correct answers
-  const examData = await getExamForStudent(attempt.examId);
+  const examData = await getExamForStudent(attempt.examId, attempt.questionOrder);
   if (!examData) redirect("/dashboard/exam");
 
   const secondsRemaining = Math.max(
@@ -51,6 +51,7 @@ export default async function ExamAttemptPage({ params }: Props) {
   return (
     <ExamPortalClient
       attemptId={attemptId}
+      applicationId={attempt.applicationId}
       exam={examData.exam}
       questions={examData.questions}
       secondsRemaining={secondsRemaining}

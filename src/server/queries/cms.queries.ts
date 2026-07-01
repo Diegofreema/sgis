@@ -1,5 +1,5 @@
 import { db, cmsPages, newsArticles, galleryItems, announcements } from "@/db";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, count } from "drizzle-orm";
 
 export async function getCMSPage(pageKey: string) {
   if (!db) return null;
@@ -34,9 +34,9 @@ export async function getNewsArticleBySlug(slug: string) {
   return result[0] ?? null;
 }
 
-export async function listPublicAnnouncements(limit = 10) {
-  if (!db) return [];
-  return db
+export async function getActiveAnnouncement() {
+  if (!db) return null;
+  const rows = await db
     .select()
     .from(announcements)
     .where(
@@ -46,17 +46,35 @@ export async function listPublicAnnouncements(limit = 10) {
       )
     )
     .orderBy(desc(announcements.publishedAt))
-    .limit(limit);
+    .limit(1);
+
+  return rows[0] ?? null;
 }
 
-export async function listGalleryItems(limit = 20) {
-  if (!db) return [];
+type ListGalleryItemsInput =
+  | number
+  | {
+      page?: number;
+      pageSize?: number;
+    };
+
+export async function countGalleryItems() {
+  if (!db) throw new Error("Gallery service unavailable.");
+  const result = await db.select({ count: count() }).from(galleryItems);
+  return Number(result[0]?.count ?? 0);
+}
+
+export async function listGalleryItems(input: ListGalleryItemsInput = 20) {
+  if (!db) throw new Error("Gallery service unavailable.");
+  const page = typeof input === "number" ? 1 : Math.max(input.page ?? 1, 1);
+  const pageSize = typeof input === "number" ? input : Math.max(input.pageSize ?? 20, 1);
+
   return db
     .select()
     .from(galleryItems)
-    .where(eq(galleryItems.visibility, "public"))
-    .orderBy(galleryItems.sortOrder)
-    .limit(limit);
+    .orderBy(galleryItems.sortOrder, desc(galleryItems.createdAt))
+    .limit(pageSize)
+    .offset((page - 1) * pageSize);
 }
 
 export async function listAllAnnouncements() {

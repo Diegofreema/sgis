@@ -3,27 +3,36 @@
  * Cached article list revalidates hourly; no full rebuild needed when
  * new articles are published (use revalidateTag('news') from a CMS action).
  */
-import type { Metadata } from "next";
-import { cacheLife } from "next/cache";
-import { NewsCard } from "@/components/public/NewsCard";
-import { FadeIn } from "@/components/animations/FadeIn";
-import { StaggerChildren, StaggerItem } from "@/components/animations/StaggerChildren";
-import { listNewsArticles } from "@/server/queries/cms.queries";
-import type { ContentStatus } from "@/constants/statuses";
+import type { Metadata } from 'next';
+import { cacheLife } from 'next/cache';
+import { NewsCard } from '@/components/public/NewsCard';
+import { FadeIn } from '@/components/animations/FadeIn';
+import {
+  StaggerChildren,
+  StaggerItem,
+} from '@/components/animations/StaggerChildren';
+import { listNewsArticles } from '@/server/queries/cms.queries';
+import type { ContentStatus } from '@/constants/statuses';
+import { notFound } from 'next/navigation';
 
 export const metadata: Metadata = {
-  title: "News & Updates",
-  description: "Latest news and announcements from Sankt Georg International School.",
+  title: 'News & Updates',
+  description:
+    'Latest news and announcements from Sankt Georg International School.',
 };
 
 /** Cached fetcher — result is memoised and revalidated every hour. */
 async function fetchArticles() {
-  "use cache";
-  cacheLife("hours");
-  return listNewsArticles("published", 20);
+  'use cache';
+  cacheLife('hours');
+  return listNewsArticles('published', 20);
 }
+const hide = true;
 
 export default async function NewsPage() {
+  if (hide) {
+    return notFound();
+  }
   const articles = await fetchArticles();
   const typedArticles = articles.map((a) => ({
     ...a,
@@ -63,7 +72,9 @@ export default async function NewsPage() {
             </StaggerChildren>
           ) : (
             <FadeIn className="text-center py-20">
-              <p className="text-muted-foreground">No news articles published yet.</p>
+              <p className="text-muted-foreground">
+                No news articles published yet.
+              </p>
             </FadeIn>
           )}
         </div>

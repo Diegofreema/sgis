@@ -1,27 +1,34 @@
-"use client";
+'use client';
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { cn, getFullName, getInitials } from '@/lib/utils';
+import { useUIStore } from '@/store/ui-store';
+import type { UserProfile } from '@/types/auth';
 import {
-  LayoutDashboard, Users, BookOpen, HelpCircle, CreditCard,
-  Bell, FileEdit, Image, Settings, UserCog, GraduationCap, ChevronRight
-} from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { cn, getFullName, getInitials } from "@/lib/utils";
-import { useUIStore } from "@/store/ui-store";
-import type { UserProfile } from "@/types/auth";
+  Bell,
+  BookOpen,
+  GraduationCap,
+  HelpCircle,
+  Image,
+  LayoutDashboard,
+  Settings,
+  UserCog,
+  Users,
+} from 'lucide-react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 const adminNavItems = [
-  { href: "/admin", label: "Overview", icon: LayoutDashboard, exact: true },
-  { href: "/admin/applicants", label: "Applicants", icon: Users },
-  { href: "/admin/exams", label: "Examinations", icon: BookOpen },
-  { href: "/admin/question-bank", label: "Question Bank", icon: HelpCircle },
-  { href: "/admin/payments", label: "Payments", icon: CreditCard },
-  { href: "/admin/announcements", label: "Announcements", icon: Bell },
-  { href: "/admin/cms", label: "CMS", icon: FileEdit },
-  { href: "/admin/gallery", label: "Gallery", icon: Image },
-  { href: "/admin/users", label: "Users", icon: UserCog },
-  { href: "/admin/settings", label: "Settings", icon: Settings },
+  { href: '/admin', label: 'Overview', icon: LayoutDashboard, exact: true },
+  { href: '/admin/applicants', label: 'Applicants', icon: Users },
+  { href: '/admin/exams', label: 'Examinations', icon: BookOpen },
+  { href: '/admin/question-bank', label: 'Question Bank', icon: HelpCircle },
+  // { href: "/admin/payments", label: "Payments", icon: CreditCard },
+  { href: '/admin/announcements', label: 'Announcements', icon: Bell },
+  // { href: '/admin/cms', label: 'CMS', icon: FileEdit },
+  { href: '/admin/gallery', label: 'Gallery', icon: Image },
+  { href: '/admin/users', label: 'Users', icon: UserCog },
+  { href: '/admin/settings', label: 'Settings', icon: Settings },
 ];
 
 type Props = { profile: UserProfile };
@@ -38,8 +45,8 @@ export function AdminSidebar({ profile }: Props) {
   return (
     <aside
       className={cn(
-        "fixed inset-y-0 left-0 z-30 w-56 bg-sidebar border-r border-sidebar-border flex flex-col transition-transform duration-300 md:relative md:translate-x-0",
-        sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        'fixed inset-y-0 left-0 z-30 w-56 bg-sidebar border-r border-sidebar-border flex flex-col transition-transform duration-300 md:relative md:translate-x-0',
+        sidebarOpen ? 'translate-x-0' : '-translate-x-full',
       )}
     >
       {/* Logo */}
@@ -48,8 +55,12 @@ export function AdminSidebar({ profile }: Props) {
           <GraduationCap className="h-3.5 w-3.5" />
         </div>
         <div className="min-w-0">
-          <p className="font-serif font-semibold text-xs text-sidebar-foreground leading-tight">Admin Panel</p>
-          <p className="text-[9px] text-sidebar-foreground/50 uppercase tracking-wide">Sankt Georg</p>
+          <p className="font-serif font-semibold text-xs text-sidebar-foreground leading-tight">
+            Admin Panel
+          </p>
+          <p className="text-[9px] text-sidebar-foreground/50 uppercase tracking-wide">
+            Sankt Georg
+          </p>
         </div>
       </div>
 
@@ -63,10 +74,10 @@ export function AdminSidebar({ profile }: Props) {
               href={item.href}
               onClick={() => setSidebarOpen(false)}
               className={cn(
-                "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium transition-colors",
+                'flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium transition-colors',
                 active
-                  ? "bg-sidebar-primary text-sidebar-primary-foreground"
-                  : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+                  ? 'bg-sidebar-primary text-sidebar-primary-foreground'
+                  : 'text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent',
               )}
             >
               <item.icon className="h-3.5 w-3.5 shrink-0" />
@@ -86,8 +97,12 @@ export function AdminSidebar({ profile }: Props) {
             </AvatarFallback>
           </Avatar>
           <div className="min-w-0">
-            <p className="text-[11px] font-semibold text-sidebar-foreground truncate">{fullName}</p>
-            <p className="text-[9px] text-sidebar-foreground/50 capitalize">{profile.role}</p>
+            <p className="text-[11px] font-semibold text-sidebar-foreground truncate">
+              {fullName}
+            </p>
+            <p className="text-[9px] text-sidebar-foreground/50 capitalize">
+              {profile.role}
+            </p>
           </div>
         </div>
       </div>

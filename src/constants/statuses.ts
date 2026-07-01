@@ -1,4 +1,5 @@
 export const APPLICATION_STATUS = {
+  PENDING: "pending",
   DRAFT: "draft",
   PENDING_PAYMENT: "pending_payment",
   SUBMITTED: "submitted",
@@ -39,6 +40,7 @@ export type ContentStatus = (typeof CONTENT_STATUS)[keyof typeof CONTENT_STATUS]
 
 /** Human-readable labels */
 export const APPLICATION_STATUS_LABELS: Record<ApplicationStatus, string> = {
+  pending: "Pending",
   draft: "Draft",
   pending_payment: "Pending Payment",
   submitted: "Submitted",
@@ -48,6 +50,7 @@ export const APPLICATION_STATUS_LABELS: Record<ApplicationStatus, string> = {
 };
 
 export const APPLICATION_STATUS_COLORS: Record<ApplicationStatus, string> = {
+  pending: "warning",
   draft: "secondary",
   pending_payment: "warning",
   submitted: "blue",

@@ -50,12 +50,12 @@ export default async function AdminUsersPage() {
 
   const appMap = new Map<string, string>();
   for (const a of appStatuses) {
-    if (!appMap.has(a.userId)) appMap.set(a.userId, a.status);
+    if (a.userId && !appMap.has(a.userId)) appMap.set(a.userId, a.status);
   }
 
   const paymentMap = new Map<string, string>();
   for (const p of paymentStatuses) {
-    if (!paymentMap.has(p.userId)) paymentMap.set(p.userId, p.status);
+    if (p.userId && !paymentMap.has(p.userId)) paymentMap.set(p.userId, p.status);
   }
 
   const enriched = rows.map((r) => ({

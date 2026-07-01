@@ -3,13 +3,14 @@
  * `'use cache'` + cacheLife('hours'): gallery items cached and revalidated
  * hourly.  Streams independently so slow image DB lookups don't block the hero.
  */
-import { cacheLife } from "next/cache";
+import { cacheLife, cacheTag } from "next/cache";
 import { listGalleryItems } from "@/server/queries/cms.queries";
 import { GalleryPreview } from "@/components/public/GalleryPreview";
 
 async function fetchGalleryPreview() {
   "use cache";
   cacheLife("hours");
+  cacheTag("gallery");
   return listGalleryItems(6);
 }
 

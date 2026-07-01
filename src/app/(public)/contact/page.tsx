@@ -3,29 +3,31 @@ import { Mail, Phone, MapPin, Clock } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { FadeIn } from "@/components/animations/FadeIn";
 import { siteConfig } from "@/config/site";
+import { getPublicSchoolSettings } from "@/server/queries/settings.queries";
 
 export const metadata: Metadata = {
   title: "Contact Us",
   description: "Get in touch with Sankt Georg International School.",
 };
 
-const contactInfo = [
-  ...siteConfig.phones.map((phone, i) => ({
-    icon: Phone,
-    label: i === 0 ? "Phone" : "Phone (2)",
-    value: phone,
-    href: `tel:${phone}`,
-  })),
-  { icon: Mail, label: "Email", value: siteConfig.email, href: `mailto:${siteConfig.email}` },
-  {
-    icon: MapPin,
-    label: "Address",
-    value: `${siteConfig.address.street}, ${siteConfig.address.city}, ${siteConfig.address.country}`,
-    href: "#",
-  },
-];
+export default async function ContactPage() {
+  const { schoolEmail, schoolPhones } = await getPublicSchoolSettings();
+  const contactInfo = [
+    ...schoolPhones.map((phone, i) => ({
+      icon: Phone,
+      label: i === 0 ? "Phone" : "Phone (2)",
+      value: phone,
+      href: `tel:${phone}`,
+    })),
+    { icon: Mail, label: "Email", value: schoolEmail, href: `mailto:${schoolEmail}` },
+    {
+      icon: MapPin,
+      label: "Address",
+      value: `${siteConfig.address.street}, ${siteConfig.address.city}, ${siteConfig.address.country}`,
+      href: "#",
+    },
+  ];
 
-export default function ContactPage() {
   return (
     <>
       <section className="pt-28 pb-16 bg-linear-to-b from-secondary/40 to-background">
@@ -34,7 +36,7 @@ export default function ContactPage() {
             <p className="text-sm font-medium text-primary uppercase tracking-wider mb-4">Get in Touch</p>
             <h1 className="text-h1 font-serif font-bold text-foreground mb-4">Contact Us</h1>
             <p className="text-xl text-muted-foreground">
-              We'd love to hear from you. Our team is ready to answer your questions.
+              We&rsquo;d love to hear from you. Our team is ready to answer your questions.
             </p>
           </FadeIn>
         </div>

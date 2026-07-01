@@ -9,7 +9,7 @@ export type QuestionOption = {
 /** Full question — only used server-side / admin */
 export type Question = {
   id: string;
-  examId: string;
+  examId: string | null;
   questionText: string;
   questionImageUrl: string | null;
   options: QuestionOption[];
@@ -49,11 +49,14 @@ export type ExamAttempt = {
   id: string;
   examId: string;
   applicationId: string;
-  userId: string;
+  userId: string | null;
   startedAt: string;
   submittedAt: string | null;
   expiresAt: string;
+  questionOrder: string[];
   score: number | null;
+  totalMarks: number | null;
+  passed: boolean | null;
   status: ExamAttemptStatus;
   createdAt: string;
   updatedAt: string;

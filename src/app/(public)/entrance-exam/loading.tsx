@@ -1,5 +1,7 @@
 import { Skeleton } from "@/components/ui/skeleton";
 
+export const unstable_instant = true;
+
 export default function EntranceExamLoading() {
   return (
     <div>
@@ -12,7 +14,13 @@ export default function EntranceExamLoading() {
       </section>
       <section className="py-12">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <Skeleton className="h-40 w-full max-w-2xl rounded-2xl" />
+          <div className="max-w-4xl space-y-6">
+            <Skeleton className="h-44 w-full rounded-2xl" />
+            <div className="grid gap-6 lg:grid-cols-[1fr_1.6fr]">
+              <Skeleton className="h-72 w-full rounded-2xl" />
+              <Skeleton className="h-96 w-full rounded-2xl" />
+            </div>
+          </div>
         </div>
       </section>
     </div>

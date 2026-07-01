@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
 
 /* ─── Async sub-components ──────────────────────────────────────────── */
 
@@ -23,73 +23,48 @@ async function StatsGrid({ periodId }: { periodId?: string }) {
   const appFilter = periodId
     ? eq(applications.applicationPeriodId, periodId)
     : undefined;
-  const payFilter = periodId
-    ? eq(payments.applicationId, periodId)
-    : undefined;
+  const applicationCountsPromise = db
+    .select({ status: applications.status, count: count() })
+    .from(applications)
+    .where(appFilter)
+    .groupBy(applications.status)
+    .then((rows) => {
+      const counts = Object.fromEntries(rows.map((r) => [r.status, Number(r.count)]));
+      return {
+        total: Object.values(counts).reduce((sum, value) => sum + value, 0),
+        pending: (counts.pending ?? 0) + (counts.under_review ?? 0),
+        approved: counts.approved ?? 0,
+      };
+    });
+  const paymentCountsPromise = db
+    .select({ status: payments.status, count: count() })
+    .from(payments)
+    .groupBy(payments.status)
+    .then((rows) => {
+      const counts = Object.fromEntries(rows.map((r) => [r.status, Number(r.count)]));
+      return {
+        total: Object.values(counts).reduce((sum, value) => sum + value, 0),
+        approved: counts.approved ?? 0,
+        rejected: counts.rejected ?? 0,
+      };
+    });
 
-  const [
-    totalApplicants,
-    pendingApps,
-    approvedApps,
-    totalPayments,
-    successPayments,
-    failedPayments,
-    publishedAnnouncements,
-  ] = await Promise.all([
-    db.select({ count: count() }).from(applications).where(appFilter).then((r) => Number(r[0]?.count ?? 0)),
-    db.select({ count: count() }).from(applications).where(
-      periodId ? eq(applications.applicationPeriodId, periodId) : eq(applications.status, "under_review")
-    ).then((r) => {
-      if (periodId) {
-        // count under_review within the period
-        return db!.select({ count: count() }).from(applications).where(
-          eq(applications.applicationPeriodId, periodId)
-        ).then((all) => {
-          // can't combine two where clauses easily here, just return under_review total
-          return 0;
-        });
-      }
-      return Number(r[0]?.count ?? 0);
-    }),
-    db.select({ count: count() }).from(applications)
-      .where(eq(applications.status, "approved"))
-      .then((r) => Number(r[0]?.count ?? 0)),
-    db.select({ count: count() }).from(payments).then((r) => Number(r[0]?.count ?? 0)),
-    db.select({ count: count() }).from(payments).where(eq(payments.status, "approved")).then((r) => Number(r[0]?.count ?? 0)),
-    db.select({ count: count() }).from(payments).where(eq(payments.status, "rejected")).then((r) => Number(r[0]?.count ?? 0)),
+  const [applicationCounts, paymentCounts, publishedAnnouncements] = await Promise.all([
+    applicationCountsPromise,
+    paymentCountsPromise,
     db.select({ count: count() }).from(announcements).where(eq(announcements.status, "published")).then((r) => Number(r[0]?.count ?? 0)),
   ]);
 
-  // Simplified period-filtered counts using and()
-  let filteredApplicants = totalApplicants;
-  let filteredApproved = approvedApps;
-  let filteredPending = pendingApps;
-
-  if (periodId) {
-    const { and } = await import("drizzle-orm");
-    [filteredApplicants, filteredApproved, filteredPending] = await Promise.all([
-      db.select({ count: count() }).from(applications)
-        .where(eq(applications.applicationPeriodId, periodId))
-        .then((r) => Number(r[0]?.count ?? 0)),
-      db.select({ count: count() }).from(applications)
-        .where(and(eq(applications.applicationPeriodId, periodId), eq(applications.status, "approved")))
-        .then((r) => Number(r[0]?.count ?? 0)),
-      db.select({ count: count() }).from(applications)
-        .where(and(eq(applications.applicationPeriodId, periodId), eq(applications.status, "under_review")))
-        .then((r) => Number(r[0]?.count ?? 0)),
-    ]);
-  }
-
   return (
     <StaggerChildren className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-      <StaggerItem><StatsCard title="Total Applicants"   value={filteredApplicants}     icon={Users}        variant="primary" /></StaggerItem>
-      <StaggerItem><StatsCard title="Under Review"       value={filteredPending}        icon={Clock}        variant="warning" /></StaggerItem>
-      <StaggerItem><StatsCard title="Approved"           value={filteredApproved}       icon={CheckCircle2} variant="success" /></StaggerItem>
+      <StaggerItem><StatsCard title="Total Applicants"   value={applicationCounts.total}     icon={Users}        variant="primary" /></StaggerItem>
+      <StaggerItem><StatsCard title="Pending"            value={applicationCounts.pending}   icon={Clock}        variant="warning" /></StaggerItem>
+      <StaggerItem><StatsCard title="Approved"           value={applicationCounts.approved}  icon={CheckCircle2} variant="success" /></StaggerItem>
       <StaggerItem><StatsCard title="Announcements"      value={publishedAnnouncements} icon={Bell} /></StaggerItem>
-      <StaggerItem><StatsCard title="Total Payments"     value={totalPayments}          icon={CreditCard} /></StaggerItem>
-      <StaggerItem><StatsCard title="Approved Payments"  value={successPayments}        icon={TrendingUp}   variant="success" /></StaggerItem>
-      <StaggerItem><StatsCard title="Rejected Payments"  value={failedPayments}         icon={XCircle}      variant="destructive" /></StaggerItem>
-      <StaggerItem><StatsCard title="Applications"       value={filteredApplicants}     icon={FileText}     description={periodId ? "This session" : "All time"} /></StaggerItem>
+      <StaggerItem><StatsCard title="Total Payments"     value={paymentCounts.total}    icon={CreditCard} /></StaggerItem>
+      <StaggerItem><StatsCard title="Approved Payments"  value={paymentCounts.approved} icon={TrendingUp}   variant="success" /></StaggerItem>
+      <StaggerItem><StatsCard title="Rejected Payments"  value={paymentCounts.rejected} icon={XCircle}      variant="destructive" /></StaggerItem>
+      <StaggerItem><StatsCard title="Applications"       value={applicationCounts.total} icon={FileText}     description={periodId ? "This session" : "All time"} /></StaggerItem>
     </StaggerChildren>
   );
 }
@@ -113,10 +88,15 @@ function StatsGridSkeleton() {
 async function RecentApplications({ periodId }: { periodId?: string }) {
   if (!db) return null;
 
-  const { eq, and } = await import("drizzle-orm");
+  const { eq } = await import("drizzle-orm");
 
   const recentApps = await db
-    .select()
+    .select({
+      id: applications.id,
+      intendedClass: applications.intendedClass,
+      createdAt: applications.createdAt,
+      status: applications.status,
+    })
     .from(applications)
     .where(periodId ? eq(applications.applicationPeriodId, periodId) : undefined)
     .orderBy(desc(applications.createdAt))
@@ -190,6 +170,7 @@ type Props = {
 export default async function AdminOverviewPage({ searchParams }: Props) {
   await requireRole(["admin"]);
   const { period } = await searchParams;
+  const selectedPeriod = period === "all" ? undefined : period;
 
   const periods = db
     ? await db
@@ -209,19 +190,19 @@ export default async function AdminOverviewPage({ searchParams }: Props) {
           {periods.length > 0 && (
             <SessionFilterSelect
               periods={periods}
-              currentPeriodId={period}
+              currentPeriodId={period === "all" ? "all" : selectedPeriod}
             />
           )}
         </div>
       </FadeIn>
 
       <Suspense fallback={<StatsGridSkeleton />}>
-        <StatsGrid periodId={period} />
+        <StatsGrid periodId={selectedPeriod} />
       </Suspense>
 
       <FadeIn>
         <Suspense fallback={<RecentAppsSkeleton />}>
-          <RecentApplications periodId={period} />
+          <RecentApplications periodId={selectedPeriod} />
         </Suspense>
       </FadeIn>
     </div>

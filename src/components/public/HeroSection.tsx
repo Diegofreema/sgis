@@ -153,7 +153,6 @@ export function HeroSection() {
                 alt=""
                 fill
                 priority={index === 0}
-                quality={88}
                 sizes={HERO_IMAGE_SIZES}
                 className="object-cover object-center"
               />

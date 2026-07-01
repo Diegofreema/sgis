@@ -1,12 +1,39 @@
 import { notFound, redirect } from "next/navigation";
 import { requireRole } from "@/lib/auth";
-import { db, applications, profiles, payments } from "@/db";
-import { eq } from "drizzle-orm";
+import { db, examAttempts, exams } from "@/db";
+import { desc, eq } from "drizzle-orm";
+import { getApplicationById } from "@/server/queries/applications.queries";
+import { env } from "@/config/env";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { ApplicantDetailClient } from "./ApplicantDetailClient";
 
 type Props = {
   params: Promise<{ id: string }>;
 };
+
+async function getReceiptUrl(receiptPath: string | null) {
+  if (!receiptPath) return null;
+
+  try {
+    const supabase = createAdminClient();
+    const bucket = process.env.NEXT_PUBLIC_STORAGE_BUCKET_DOCUMENTS ?? "documents";
+    const { data, error } = await supabase.storage
+      .from(bucket)
+      .createSignedUrl(receiptPath, 3600);
+
+    if (error) {
+      console.error("[storage] Failed to sign receipt URL:", error.message);
+      return null;
+    }
+
+    return data.signedUrl;
+  } catch (error) {
+    if (env.NODE_ENV !== "production") {
+      console.error("[storage] Failed to create receipt URL:", error);
+    }
+    return null;
+  }
+}
 
 export default async function ApplicantDetailPage({ params }: Props) {
   const { id } = await params;
@@ -14,32 +41,30 @@ export default async function ApplicantDetailPage({ params }: Props) {
 
   if (!db) redirect("/admin/applicants");
 
-  // Fetch application with profile
-  const rows = await db
-    .select({
-      application: applications,
-      profile: profiles,
-    })
-    .from(applications)
-    .innerJoin(profiles, eq(applications.userId, profiles.id))
-    .where(eq(applications.id, id))
-    .limit(1);
+  const application = await getApplicationById(id);
 
-  if (!rows[0]) notFound();
+  if (!application) notFound();
 
-  const { application, profile } = rows[0];
+  const receiptUrl = application.receiptPath
+    ? await getReceiptUrl(application.receiptPath)
+    : application.receiptUrl;
 
-  // Fetch payment records for this applicant
-  const paymentRows = await db
-    .select()
-    .from(payments)
-    .where(eq(payments.userId, profile.id));
+  const attempt = await db
+    .select({ attempt: examAttempts, exam: exams })
+    .from(examAttempts)
+    .innerJoin(exams, eq(examAttempts.examId, exams.id))
+    .where(eq(examAttempts.applicationId, application.id))
+    .orderBy(desc(examAttempts.createdAt))
+    .limit(1)
+    .then((rows) => rows[0] ?? null);
 
   return (
     <ApplicantDetailClient
-      application={application}
-      profile={profile}
-      payments={paymentRows}
+      application={{
+        ...application,
+        receiptUrl,
+      }}
+      examAttempt={attempt}
     />
   );
 }

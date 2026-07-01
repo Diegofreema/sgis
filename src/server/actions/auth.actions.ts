@@ -122,6 +122,12 @@ function getSupabaseAdminAuthErrorMessage(message?: string) {
 export async function register(
   input: z.infer<typeof registerSchema>
 ): Promise<ActionResult<{ redirectTo: string; message: string }>> {
+  void input;
+  return {
+    success: false,
+    error: "Account creation is disabled. Applicants should use the public entrance exam form.",
+  };
+/*
   const parsed = registerSchema.safeParse(input);
   if (!parsed.success) {
     return {
@@ -188,6 +194,7 @@ export async function register(
       message: "Account created. Verify your email to continue.",
     },
   };
+*/
 }
 
 export async function login(
@@ -233,9 +240,18 @@ export async function login(
 
   const profile = await getProfileByAuthId(data.user.id);
   if (!profile) {
+    await supabase.auth.signOut();
     return {
       success: false,
       error: "Your profile could not be found. Please contact support.",
+    };
+  }
+
+  if (profile.role !== "admin") {
+    await supabase.auth.signOut();
+    return {
+      success: false,
+      error: "Only admin accounts can sign in here.",
     };
   }
 
@@ -251,10 +267,7 @@ export async function login(
     success: true,
     data: {
       redirectTo: getPostLoginRedirect(profile),
-      message:
-        profile.role === "student" && profile.requiresPasswordChange
-          ? "Update your password to unlock your student dashboard."
-          : "Welcome back!",
+      message: "Welcome back!",
     },
   };
 }
@@ -402,6 +415,12 @@ export async function updateProfile(
 export async function createStudentAccount(
   input: z.infer<typeof createStudentSchema>
 ): Promise<ActionResult<{ studentId: string; delivery: "smtp" | "outbox"; filePath?: string }>> {
+  void input;
+  return {
+    success: false,
+    error: "Student account creation is disabled. Applicants should use the public entrance exam form.",
+  };
+/*
   const parsed = createStudentSchema.safeParse(input);
   if (!parsed.success) {
     return {
@@ -488,4 +507,5 @@ export async function createStudentAccount(
           : "The student account could not be created.",
     };
   }
+*/
 }

@@ -1,141 +1,126 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import {
   ArrowLeft,
   CheckCircle2,
-  XCircle,
   Clock,
-  Loader2,
-  User,
-  CreditCard,
   FileText,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Separator } from "@/components/ui/separator";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { reviewApplication } from "@/server/actions/application.actions";
-import { formatDate, formatCurrency, getInitials } from "@/lib/utils";
-import type { Application } from "@/db/schema/applications";
-import type { Profile } from "@/db/schema/users";
-import type { Payment } from "@/db/schema/payments";
+  Loader2,
+  Printer,
+  XCircle,
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { reviewApplication } from '@/server/actions/application.actions';
+import { formatDate } from '@/lib/utils';
+import type { Application } from '@/db/schema/applications';
 
 const STATUS_COLORS: Record<string, string> = {
-  draft: "bg-muted text-muted-foreground",
-  pending_payment: "bg-warning/20 text-warning",
-  submitted: "bg-primary/10 text-primary",
-  under_review: "bg-primary/20 text-primary",
-  approved: "bg-success/20 text-success",
-  rejected: "bg-destructive/20 text-destructive",
-};
-
-const PAYMENT_STATUS_COLORS: Record<string, string> = {
-  pending: "bg-muted text-muted-foreground",
-  submitted: "bg-warning/20 text-warning",
-  approved: "bg-success/20 text-success",
-  rejected: "bg-destructive/20 text-destructive",
+  pending: 'bg-warning/20 text-warning',
+  approved: 'bg-success/20 text-success',
+  rejected: 'bg-destructive/20 text-destructive',
+  draft: 'bg-muted text-muted-foreground',
+  pending_payment: 'bg-warning/20 text-warning',
+  submitted: 'bg-primary/10 text-primary',
+  under_review: 'bg-primary/20 text-primary',
 };
 
 type Props = {
   application: Application;
-  profile: Profile;
-  payments: Payment[];
+  examAttempt: {
+    attempt: {
+      score: string | null;
+      totalMarks: number | null;
+      passed: boolean | null;
+      status: string;
+      submittedAt: Date | null;
+    };
+    exam: {
+      title: string;
+      passingScore: number;
+    };
+  } | null;
 };
 
-export function ApplicantDetailClient({ application, profile, payments }: Props) {
+export function ApplicantDetailClient({ application, examAttempt }: Props) {
   const router = useRouter();
-  const [notes, setNotes] = useState("");
+  const [notes, setNotes] = useState('');
   const [rejectionReason, setRejectionReason] = useState(
-    application.rejectionReason ?? ""
+    application.rejectionReason ?? '',
   );
   const [submitting, setSubmitting] = useState<
-    "approve" | "reject" | "review" | null
+    'pending' | 'approved' | 'rejected' | null
   >(null);
   const [currentStatus, setCurrentStatus] = useState(application.status);
+  const fullName = `${application.firstName} ${application.lastName}`;
 
-  const fullName = [profile.firstName, profile.lastName]
-    .filter(Boolean)
-    .join(" ") || "Unnamed Applicant";
-
-  async function handleReview(
-    action: "approved" | "rejected" | "under_review"
-  ) {
-    if (action === "rejected" && !rejectionReason.trim()) {
-      toast.error("Please provide a rejection reason.");
+  async function handleReview(status: 'pending' | 'approved' | 'rejected') {
+    if (status === 'rejected' && !rejectionReason.trim()) {
+      toast.error('Please provide a rejection reason.');
       return;
     }
-    setSubmitting(
-      action === "approved"
-        ? "approve"
-        : action === "rejected"
-        ? "reject"
-        : "review"
-    );
+
+    setSubmitting(status);
     const result = await reviewApplication(application.id, {
-      status: action,
-      rejectionReason: action === "rejected" ? rejectionReason : undefined,
+      status,
+      rejectionReason: status === 'rejected' ? rejectionReason : undefined,
       notes: notes || undefined,
     });
     setSubmitting(null);
-    if (result.success) {
-      setCurrentStatus(action);
-      toast.success(
-        action === "approved"
-          ? "Application approved!"
-          : action === "rejected"
-          ? "Application rejected."
-          : "Application marked as under review."
-      );
-    } else {
-      toast.error(result.error ?? "Failed to update application.");
+
+    if (!result.success) {
+      toast.error(result.error);
+      return;
     }
+
+    setCurrentStatus(status);
+    toast.success('Application updated.');
+    router.refresh();
   }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => router.push("/admin/applicants")}
-          className="shrink-0"
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div className="flex items-center gap-3 flex-1 min-w-0">
-          <Avatar className="h-10 w-10 shrink-0">
-            <AvatarFallback>
-              {getInitials(`${profile.firstName ?? ""} ${profile.lastName ?? ""}`.trim())}
-            </AvatarFallback>
-          </Avatar>
-          <div className="min-w-0">
-            <h1 className="font-serif text-xl font-semibold text-foreground truncate">
+      <div className="flex items-center justify-between gap-4 print:hidden">
+        <div className="flex items-center gap-3 min-w-0">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => router.push('/admin/applicants')}
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div>
+            <h1 className="font-serif text-xl font-semibold text-foreground">
               {fullName}
             </h1>
-            <p className="text-sm text-muted-foreground">{profile.email}</p>
+            <p className="text-sm text-muted-foreground">
+              {application.applicationCode}
+            </p>
           </div>
-          <Badge className={`ml-2 ${STATUS_COLORS[currentStatus] ?? ""}`}>
-            {currentStatus.replace("_", " ")}
+          <Badge className={STATUS_COLORS[currentStatus] ?? ''}>
+            {currentStatus.replace(/_/g, ' ')}
           </Badge>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-2"
+          onClick={() => window.print()}
+        >
+          <Printer className="h-4 w-4" />
+          Print
+        </Button>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Main content */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Application details */}
           <Card>
             <CardHeader>
               <CardTitle className="font-serif text-base flex items-center gap-2">
@@ -143,176 +128,127 @@ export function ApplicantDetailClient({ application, profile, payments }: Props)
                 Application Details
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
-                <div>
-                  <dt className="text-muted-foreground">Intended Class</dt>
-                  <dd className="font-medium mt-0.5">
-                    {application.intendedClass}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">Previous School</dt>
-                  <dd className="font-medium mt-0.5">
-                    {application.previousSchool ?? "—"}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">Guardian Name</dt>
-                  <dd className="font-medium mt-0.5">
-                    {application.guardianName ?? "—"}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">Guardian Phone</dt>
-                  <dd className="font-medium mt-0.5">
-                    {application.guardianPhone ?? "—"}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">Guardian Email</dt>
-                  <dd className="font-medium mt-0.5">
-                    {application.guardianEmail ?? "—"}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">Submitted</dt>
-                  <dd className="font-medium mt-0.5">
-                    {application.submittedAt
-                      ? formatDate(application.submittedAt)
-                      : "Not yet submitted"}
-                  </dd>
-                </div>
-              </dl>
+            <CardContent className="space-y-5">
+              <div className="grid gap-4">
+                <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
+                  <Info label="Name" value={fullName} />
+                  <Info
+                    label="Application ID"
+                    value={application.applicationCode}
+                  />
+                  <Info label="Email" value={application.email} />
+                  <Info label="Phone" value={application.phone} />
+                  <Info label="Date of Birth" value={application.dateOfBirth} />
+                  <Info label="Gender" value={application.gender} />
+                  <Info
+                    label="Intended Class"
+                    value={application.intendedClass}
+                  />
+                  <Info
+                    label="Previous School"
+                    value={application.previousSchool ?? 'Not provided'}
+                  />
+                  <Info label="Address" value={application.address} wide />
+                  <Info
+                    label="State / LGA"
+                    value={
+                      [application.state, application.lga]
+                        .filter(Boolean)
+                        .join(' / ') || 'Not provided'
+                    }
+                  />
+                  <Info
+                    label="Submitted"
+                    value={
+                      application.submittedAt
+                        ? formatDate(application.submittedAt)
+                        : 'Not submitted'
+                    }
+                  />
+                </dl>
+              </div>
+            </CardContent>
+          </Card>
 
-              {application.rejectionReason && (
-                <div className="mt-4 rounded-lg border border-destructive/30 bg-destructive/10 p-3">
-                  <p className="text-xs text-destructive font-medium mb-1">
-                    Rejection Reason
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {application.rejectionReason}
-                  </p>
-                </div>
+          <Card>
+            <CardHeader>
+              <CardTitle className="font-serif text-base">
+                Guardian and Receipt
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
+                <Info
+                  label="Guardian Name"
+                  value={application.guardianName ?? 'Not provided'}
+                />
+                <Info
+                  label="Guardian Phone"
+                  value={application.guardianPhone ?? 'Not provided'}
+                />
+                <Info
+                  label="Guardian Email"
+                  value={application.guardianEmail ?? 'Not provided'}
+                />
+              </dl>
+              {application.receiptUrl && (
+                <Button asChild variant="outline" size="sm">
+                  <a
+                    href={application.receiptUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    View payment receipt
+                  </a>
+                </Button>
               )}
             </CardContent>
           </Card>
 
-          {/* Profile info */}
           <Card>
             <CardHeader>
-              <CardTitle className="font-serif text-base flex items-center gap-2">
-                <User className="h-4 w-4" />
-                Student Profile
+              <CardTitle className="font-serif text-base">
+                Exam Outcome
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
-                <div>
-                  <dt className="text-muted-foreground">Date of Birth</dt>
-                  <dd className="font-medium mt-0.5">
-                    {profile.dateOfBirth ?? "—"}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">Gender</dt>
-                  <dd className="font-medium mt-0.5 capitalize">
-                    {profile.gender ?? "—"}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">Phone</dt>
-                  <dd className="font-medium mt-0.5">{profile.phone ?? "—"}</dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">Address</dt>
-                  <dd className="font-medium mt-0.5">
-                    {profile.address ?? "—"}
-                  </dd>
-                </div>
-                <div className="col-span-2">
-                  <dt className="text-muted-foreground">Registered</dt>
-                  <dd className="font-medium mt-0.5">
-                    {formatDate(profile.createdAt)}
-                  </dd>
-                </div>
-              </dl>
-            </CardContent>
-          </Card>
-
-          {/* Payments */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="font-serif text-base flex items-center gap-2">
-                <CreditCard className="h-4 w-4" />
-                Payment History
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {payments.length === 0 ? (
+            <CardContent className="space-y-4">
+              {!examAttempt ? (
                 <p className="text-sm text-muted-foreground">
-                  No payment records found.
+                  No exam attempt recorded yet.
                 </p>
               ) : (
-                <div className="space-y-3">
-                  {payments.map((p) => (
-                    <div
-                      key={p.id}
-                      className="rounded-lg bg-muted/30 px-3 py-2.5 space-y-1.5"
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-medium capitalize">
-                            {p.purpose.replace(/_/g, " ")}
-                          </p>
-                          <p className="text-xs text-muted-foreground font-mono">
-                            {p.reference}
-                          </p>
-                        </div>
-                        <div className="text-right shrink-0">
-                          <p className="text-sm font-semibold">
-                            {formatCurrency(Number(p.amount), p.currency)}
-                          </p>
-                          <Badge
-                            className={`text-[10px] ${
-                              PAYMENT_STATUS_COLORS[p.status] ?? ""
-                            }`}
-                          >
-                            {p.status}
-                          </Badge>
-                        </div>
-                      </div>
-                      {p.transactionRef && (
-                        <p className="text-xs text-muted-foreground">
-                          Bank ref:{" "}
-                          <span className="font-mono font-medium text-foreground">
-                            {p.transactionRef}
-                          </span>
-                        </p>
-                      )}
-                      {p.proofNote && (
-                        <p className="text-xs text-muted-foreground italic">"{p.proofNote}"</p>
-                      )}
-                      {p.proofOfPaymentUrl && (
-                        <a
-                          href={p.proofOfPaymentUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs text-primary hover:underline"
-                        >
-                          View receipt →
-                        </a>
-                      )}
-                    </div>
-                  ))}
-                </div>
+                <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
+                  <Info label="Exam" value={examAttempt.exam.title} wide />
+                  <Info label="Attempt status" value={examAttempt.attempt.status.replace(/_/g, " ")} />
+                  <Info label="Submitted" value={examAttempt.attempt.submittedAt ? formatDate(examAttempt.attempt.submittedAt) : "Not submitted"} />
+                  <Info label="Score" value={examAttempt.attempt.score ?? "—"} />
+                  <Info label="Total marks" value={String(examAttempt.attempt.totalMarks ?? "—")} />
+                  <Info
+                    label="Percentage"
+                    value={
+                      examAttempt.attempt.score !== null && (examAttempt.attempt.totalMarks ?? 0) > 0
+                        ? `${Math.round((Number(examAttempt.attempt.score) / Number(examAttempt.attempt.totalMarks)) * 100)}%`
+                        : "—"
+                    }
+                  />
+                  <Info label="Pass threshold" value={`${examAttempt.exam.passingScore}%`} />
+                  <Info
+                    label="Outcome"
+                    value={
+                      examAttempt.attempt.passed === null
+                        ? "Pending"
+                        : examAttempt.attempt.passed
+                          ? "Passed"
+                          : "Failed"
+                    }
+                  />
+                </dl>
               )}
             </CardContent>
           </Card>
         </div>
 
-        {/* Review sidebar */}
-        <div className="space-y-4">
+        <div className="space-y-4 print:hidden">
           <Card>
             <CardHeader>
               <CardTitle className="font-serif text-base">
@@ -320,91 +256,86 @@ export function ApplicantDetailClient({ application, profile, payments }: Props)
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {currentStatus === "approved" || currentStatus === "rejected" ? (
-                <div className="rounded-lg bg-muted/30 p-4 text-center">
-                  <p className="text-sm font-medium">
-                    Application {currentStatus}.
-                  </p>
-                  {application.reviewedAt && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {formatDate(application.reviewedAt)}
-                    </p>
+              <div className="space-y-1.5">
+                <Label>Internal Notes</Label>
+                <Textarea
+                  value={notes}
+                  onChange={(event) => setNotes(event.target.value)}
+                  rows={3}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Rejection Reason</Label>
+                <Textarea
+                  value={rejectionReason}
+                  onChange={(event) => setRejectionReason(event.target.value)}
+                  rows={3}
+                />
+              </div>
+
+              <Separator />
+
+              <div className="space-y-2">
+                <Button
+                  className="w-full gap-2"
+                  onClick={() => handleReview('approved')}
+                  disabled={!!submitting}
+                >
+                  {submitting === 'approved' ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <CheckCircle2 className="h-4 w-4" />
                   )}
-                </div>
-              ) : (
-                <>
-                  <div className="space-y-1.5">
-                    <Label className="text-sm">Internal Notes</Label>
-                    <Textarea
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      placeholder="Notes visible only to admins…"
-                      rows={3}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-sm">
-                      Rejection Reason{" "}
-                      <span className="text-muted-foreground font-normal text-xs">
-                        (required if rejecting)
-                      </span>
-                    </Label>
-                    <Textarea
-                      value={rejectionReason}
-                      onChange={(e) => setRejectionReason(e.target.value)}
-                      placeholder="Explain why the application is rejected…"
-                      rows={3}
-                    />
-                  </div>
-
-                  <Separator />
-
-                  <div className="space-y-2">
-                    <Button
-                      className="w-full gap-1.5 font-medium"
-                      onClick={() => handleReview("approved")}
-                      disabled={!!submitting}
-                    >
-                      {submitting === "approve" ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <CheckCircle2 className="h-4 w-4" />
-                      )}
-                      Approve Application
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="w-full gap-1.5"
-                      onClick={() => handleReview("under_review")}
-                      disabled={!!submitting}
-                    >
-                      {submitting === "review" ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Clock className="h-4 w-4" />
-                      )}
-                      Mark Under Review
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="w-full gap-1.5 border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                      onClick={() => handleReview("rejected")}
-                      disabled={!!submitting}
-                    >
-                      {submitting === "reject" ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <XCircle className="h-4 w-4" />
-                      )}
-                      Reject Application
-                    </Button>
-                  </div>
-                </>
-              )}
+                  Approve Application
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full gap-2"
+                  onClick={() => handleReview('pending')}
+                  disabled={!!submitting}
+                >
+                  {submitting === 'pending' ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Clock className="h-4 w-4" />
+                  )}
+                  Mark Pending
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full gap-2 border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  onClick={() => handleReview('rejected')}
+                  disabled={!!submitting}
+                >
+                  {submitting === 'rejected' ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <XCircle className="h-4 w-4" />
+                  )}
+                  Reject Application
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
       </div>
+    </div>
+  );
+}
+
+function Info({
+  label,
+  value,
+  wide,
+}: {
+  label: string;
+  value: string;
+  wide?: boolean;
+}) {
+  return (
+    <div className={wide ? 'col-span-2' : ''}>
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="font-medium mt-0.5 break-words">{value}</dd>
     </div>
   );
 }

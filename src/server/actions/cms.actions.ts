@@ -1,8 +1,7 @@
 "use server";
 
-import { z } from "zod";
-import { db, cmsPages, newsArticles, announcements, galleryItems } from "@/db";
-import { eq } from "drizzle-orm";
+import { db, cmsPages, newsArticles, announcements } from "@/db";
+import { and, eq, ne } from "drizzle-orm";
 import { requireRole } from "@/lib/auth";
 import slugify from "slugify";
 import { nanoid } from "nanoid";
@@ -89,7 +88,6 @@ export async function createAnnouncement(input: {
   title: string;
   body: string;
   excerpt?: string;
-  audience?: "public" | "students" | "parents" | "applicants" | "admins";
   isImportant?: boolean;
   status?: "draft" | "published";
 }): Promise<ActionResult<{ id: string }>> {
@@ -99,6 +97,16 @@ export async function createAnnouncement(input: {
   const slug =
     slugify(input.title, { lower: true, strict: true }) + "-" + nanoid(6);
 
+  if (input.status === "published") {
+    await db
+      .update(announcements)
+      .set({
+        status: "archived",
+        updatedAt: new Date(),
+      })
+      .where(eq(announcements.status, "published"));
+  }
+
   const [ann] = await db
     .insert(announcements)
     .values({
@@ -106,7 +114,7 @@ export async function createAnnouncement(input: {
       slug,
       body: input.body,
       excerpt: input.excerpt,
-      audience: input.audience ?? "public",
+      audience: "public",
       isImportant: input.isImportant ?? false,
       status: input.status ?? "draft",
       publishedAt: input.status === "published" ? new Date() : null,
@@ -123,6 +131,16 @@ export async function updateAnnouncementStatus(
 ): Promise<ActionResult> {
   await requireRole(["admin"]);
   if (!db) return { success: false, error: "Service unavailable" };
+
+  if (status === "published") {
+    await db
+      .update(announcements)
+      .set({
+        status: "archived",
+        updatedAt: new Date(),
+      })
+      .where(and(eq(announcements.status, "published"), ne(announcements.id, id)));
+  }
 
   await db
     .update(announcements)

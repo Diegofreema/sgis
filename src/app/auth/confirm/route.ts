@@ -7,15 +7,12 @@ import { markProfileEmailVerified } from "@/server/auth/profile-state";
 function getRedirectDestination(nextPath: string, profile: Awaited<ReturnType<typeof getProfileByAuthId>>) {
   if (nextPath === "/reset-password") return nextPath;
   if (profile?.role === "admin") return "/admin";
-  if (profile?.role === "student" && profile.requiresPasswordChange) {
-    return "/dashboard/profile?password=required";
-  }
-  return nextPath;
+  return "/login";
 }
 
 function sanitizeNextPath(nextPath: string | null) {
   if (!nextPath || !nextPath.startsWith("/")) {
-    return "/dashboard";
+    return "/admin";
   }
 
   return nextPath;

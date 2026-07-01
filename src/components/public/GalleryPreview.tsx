@@ -47,6 +47,7 @@ export function GalleryPreview({ items }: GalleryPreviewProps) {
                       src={item.imageUrl}
                       alt={item.title}
                       fill
+                      unoptimized
                       className="object-cover transition-transform duration-500 group-hover:scale-105"
                       sizes="(max-width: 768px) 50vw, 33vw"
                     />

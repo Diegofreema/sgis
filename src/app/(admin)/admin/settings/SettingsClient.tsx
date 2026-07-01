@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { format } from "date-fns";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   Save,
@@ -13,14 +15,26 @@ import {
   Landmark,
   X,
   Check,
+  CalendarIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Card,
   CardContent,
@@ -41,13 +55,22 @@ import {
   deleteBankAccount,
   toggleBankAccountActive,
 } from "@/server/actions/bank-account.actions";
-import { updateAdmissionSettings } from "@/server/actions/settings.actions";
+import {
+  createApplicationPeriod,
+  updateApplicationPeriod,
+  updateApplicationPeriodStatus,
+} from "@/server/actions/application.actions";
+import { updateAdmissionSettings, updateSchoolSettings } from "@/server/actions/settings.actions";
 import type { BankAccount } from "@/db/schema/bank_accounts";
 import type { AdmissionSettings } from "@/db/schema/settings";
+import type { ApplicationPeriod } from "@/db/schema/applications";
+import { formatAcademicSession, parseAcademicSession } from "@/lib/application-periods";
+import { formatCurrency, formatDate } from "@/lib/utils";
 
 type Props = {
   bankAccounts: BankAccount[];
   admissionSettings: AdmissionSettings | null;
+  applicationPeriods: ApplicationPeriod[];
 };
 
 type BankAccountForm = {
@@ -72,19 +95,47 @@ const emptyForm: BankAccountForm = {
   notes: "",
 };
 
-export function SettingsClient({ bankAccounts: initialAccounts, admissionSettings: initialAdmission }: Props) {
-  // School settings (placeholder — connect to DB settings table in future)
-  const [schoolName, setSchoolName] = useState("Sankt Georg International School");
-  const [schoolEmail, setSchoolEmail] = useState("");
-  const [schoolPhone, setSchoolPhone] = useState("");
-  const [maintenanceMode, setMaintenanceMode] = useState(false);
+function formatDateTimeInput(date: string | Date) {
+  return format(new Date(date), "yyyy-MM-dd'T'HH:mm");
+}
+
+export function SettingsClient({
+  bankAccounts: initialAccounts,
+  admissionSettings: initialAdmission,
+  applicationPeriods: initialPeriods,
+}: Props) {
+  const router = useRouter();
+  const [schoolName, setSchoolName] = useState(
+    initialAdmission?.schoolName ?? "Sankt Georg International School"
+  );
+  const [schoolEmail, setSchoolEmail] = useState(initialAdmission?.schoolEmail ?? "");
+  const [schoolPhone, setSchoolPhone] = useState(initialAdmission?.schoolPhone ?? "");
+  const [maintenanceMode, setMaintenanceMode] = useState(initialAdmission?.maintenanceMode ?? false);
   const [saving, setSaving] = useState(false);
 
-  // Admission settings — wired to DB
-  const [admissionsOpen, setAdmissionsOpen] = useState(initialAdmission?.isOpen ?? false);
-  const [academicSession, setAcademicSession] = useState(initialAdmission?.academicSession ?? "");
+  // Admission settings — note only
+  const [academicSessionPickerOpen, setAcademicSessionPickerOpen] = useState(false);
   const [admissionNotes, setAdmissionNotes] = useState(initialAdmission?.notes ?? "");
   const [savingAdmission, setSavingAdmission] = useState(false);
+  const [periods, setPeriods] = useState<ApplicationPeriod[]>(initialPeriods);
+  const [creatingPeriod, setCreatingPeriod] = useState(false);
+  const [editingPeriod, setEditingPeriod] = useState<ApplicationPeriod | null>(null);
+  const [editingPeriodPickerOpen, setEditingPeriodPickerOpen] = useState(false);
+  const [updatingPeriod, setUpdatingPeriod] = useState(false);
+  const [periodForm, setPeriodForm] = useState({
+    title: "",
+    applicationStartDate: "",
+    applicationEndDate: "",
+    examStartDate: "",
+    examEndDate: "",
+    registrationFee: "",
+    currency: "NGN",
+  });
+  const [editPeriodForm, setEditPeriodForm] = useState({
+    title: "",
+    applicationStartDate: "",
+    applicationEndDate: "",
+  });
 
   // Bank accounts state
   const [accounts, setAccounts] = useState<BankAccount[]>(initialAccounts);
@@ -94,19 +145,29 @@ export function SettingsClient({ bankAccounts: initialAccounts, admissionSetting
   const [submitting, setSubmitting] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [accountToDelete, setAccountToDelete] = useState<BankAccount | null>(null);
+  const selectedCreateAcademicSession = parseAcademicSession(periodForm.title);
+  const selectedEditAcademicSession = parseAcademicSession(editPeriodForm.title);
 
   async function handleSave() {
     setSaving(true);
-    await new Promise((r) => setTimeout(r, 600));
+    const result = await updateSchoolSettings({
+      schoolName,
+      schoolEmail: schoolEmail || undefined,
+      schoolPhone: schoolPhone || undefined,
+      maintenanceMode,
+    });
     setSaving(false);
-    toast.success("Settings saved.");
+    if (result.success) {
+      toast.success("Settings saved.");
+    } else {
+      toast.error((result as { error: string }).error);
+    }
   }
 
   async function handleSaveAdmission() {
     setSavingAdmission(true);
     const result = await updateAdmissionSettings({
-      isOpen: admissionsOpen,
-      academicSession,
       notes: admissionNotes || undefined,
     });
     setSavingAdmission(false);
@@ -115,6 +176,159 @@ export function SettingsClient({ bankAccounts: initialAccounts, admissionSetting
     } else {
       toast.error((result as { error: string }).error);
     }
+  }
+
+  function setPeriodField(field: keyof typeof periodForm, value: string) {
+    setPeriodForm((prev) => ({ ...prev, [field]: value }));
+  }
+
+  function setEditPeriodField(field: keyof typeof editPeriodForm, value: string) {
+    setEditPeriodForm((prev) => ({ ...prev, [field]: value }));
+  }
+
+  async function handleCreatePeriod() {
+    if (
+      !periodForm.title.trim() ||
+      !periodForm.applicationStartDate ||
+      !periodForm.applicationEndDate ||
+      !periodForm.examStartDate ||
+      !periodForm.examEndDate ||
+      !periodForm.registrationFee
+    ) {
+      toast.error("Pick academic session and fill in the dates and fee.");
+      return;
+    }
+
+    setCreatingPeriod(true);
+    const nextPeriod = {
+      title: periodForm.title.trim(),
+      applicationStartDate: periodForm.applicationStartDate,
+      applicationEndDate: periodForm.applicationEndDate,
+      examStartDate: periodForm.examStartDate,
+      examEndDate: periodForm.examEndDate,
+      registrationFee: Number(periodForm.registrationFee),
+      currency: periodForm.currency.trim() || "NGN",
+    };
+    const result = await createApplicationPeriod({
+      ...nextPeriod,
+    });
+    setCreatingPeriod(false);
+
+    if (!result.success) {
+      toast.error(result.error);
+      return;
+    }
+
+    setPeriods((prev) => [
+      {
+        id: result.data.periodId,
+        title: nextPeriod.title,
+        description: null,
+        applicationStartDate: new Date(nextPeriod.applicationStartDate),
+        applicationEndDate: new Date(nextPeriod.applicationEndDate),
+        examStartDate: new Date(nextPeriod.examStartDate),
+        examEndDate: new Date(nextPeriod.examEndDate),
+        registrationFee: String(nextPeriod.registrationFee),
+        currency: nextPeriod.currency,
+        eligibleClasses: [],
+        status: "upcoming",
+        createdBy: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      ...prev,
+    ]);
+    setPeriodForm({
+      title: "",
+      applicationStartDate: "",
+      applicationEndDate: "",
+      examStartDate: "",
+      examEndDate: "",
+      registrationFee: "",
+      currency: "NGN",
+    });
+    setAcademicSessionPickerOpen(false);
+    router.refresh();
+    toast.success("Application session created.");
+  }
+
+  function openEditPeriod(period: ApplicationPeriod) {
+    setEditingPeriod(period);
+    setEditingPeriodPickerOpen(false);
+    setEditPeriodForm({
+      title: period.title,
+      applicationStartDate: formatDateTimeInput(period.applicationStartDate),
+      applicationEndDate: formatDateTimeInput(period.applicationEndDate),
+    });
+  }
+
+  function closeEditPeriod() {
+    setEditingPeriod(null);
+    setEditingPeriodPickerOpen(false);
+    setEditPeriodForm({
+      title: "",
+      applicationStartDate: "",
+      applicationEndDate: "",
+    });
+  }
+
+  async function handleUpdatePeriod() {
+    if (!editingPeriod) return;
+    if (
+      !editPeriodForm.title.trim() ||
+      !editPeriodForm.applicationStartDate ||
+      !editPeriodForm.applicationEndDate
+    ) {
+      toast.error("Pick academic session and fill in the application dates.");
+      return;
+    }
+
+    setUpdatingPeriod(true);
+    const result = await updateApplicationPeriod({
+      periodId: editingPeriod.id,
+      title: editPeriodForm.title.trim(),
+      applicationStartDate: editPeriodForm.applicationStartDate,
+      applicationEndDate: editPeriodForm.applicationEndDate,
+    });
+    setUpdatingPeriod(false);
+
+    if (!result.success) {
+      toast.error(result.error);
+      return;
+    }
+
+    setPeriods((prev) =>
+      prev.map((period) =>
+        period.id === editingPeriod.id
+          ? {
+              ...period,
+              title: editPeriodForm.title.trim(),
+              applicationStartDate: new Date(editPeriodForm.applicationStartDate),
+              applicationEndDate: new Date(editPeriodForm.applicationEndDate),
+              updatedAt: new Date(),
+            }
+          : period
+      )
+    );
+    closeEditPeriod();
+    router.refresh();
+    toast.success("Application session updated.");
+  }
+
+  async function handlePeriodStatus(periodId: string, status: "upcoming" | "open" | "closed" | "archived") {
+    const result = await updateApplicationPeriodStatus(periodId, status);
+    if (!result.success) {
+      toast.error(result.error);
+      return;
+    }
+    setPeriods((prev) =>
+      prev.map((period) => ({
+        ...period,
+        status: period.id === periodId ? status : status === "open" ? "closed" : period.status,
+      }))
+    );
+    router.refresh();
+    toast.success(`Session marked as ${status}.`);
   }
 
   function openCreate() {
@@ -240,12 +454,12 @@ export function SettingsClient({ bankAccounts: initialAccounts, admissionSetting
   }
 
   async function handleDelete(account: BankAccount) {
-    if (!confirm(`Delete "${account.bankName} — ${account.accountNumber}"? This cannot be undone.`)) return;
     setDeletingId(account.id);
     const result = await deleteBankAccount(account.id);
     setDeletingId(null);
     if (result.success) {
       setAccounts((prev) => prev.filter((a) => a.id !== account.id));
+      setAccountToDelete(null);
       toast.success("Bank account deleted.");
     } else {
       toast.error((result as { error: string }).error);
@@ -307,34 +521,12 @@ export function SettingsClient({ bankAccounts: initialAccounts, admissionSetting
       {/* Admission settings */}
       <Card>
         <CardHeader>
-          <CardTitle className="font-serif text-base">Admissions</CardTitle>
+          <CardTitle className="font-serif text-base">Admissions Message</CardTitle>
           <CardDescription className="text-xs">
-            Control the admissions status shown on the public website. Changes are reflected immediately.
+            Public admissions status now follows the open application session below. Use this for optional website copy only.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-5">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-sm font-medium">Admissions Open</p>
-              <p className="text-xs text-muted-foreground">
-                When on, the public CTA shows "Apply Now" buttons and the current academic session.
-              </p>
-            </div>
-            <Switch checked={admissionsOpen} onCheckedChange={setAdmissionsOpen} />
-          </div>
-          <Separator />
-          <div className="space-y-1.5">
-            <Label htmlFor="academic-session">Academic Session</Label>
-            <Input
-              id="academic-session"
-              value={academicSession}
-              onChange={(e) => setAcademicSession(e.target.value)}
-              placeholder="e.g. 2025–2026"
-            />
-            <p className="text-xs text-muted-foreground">
-              Displayed as "Applications for the [session] academic year are now open."
-            </p>
-          </div>
+        <CardContent className="space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="admission-notes">Custom Message (optional)</Label>
             <Textarea
@@ -345,7 +537,7 @@ export function SettingsClient({ bankAccounts: initialAccounts, admissionSetting
               rows={2}
             />
             <p className="text-xs text-muted-foreground">
-              If set, this replaces the auto-generated body text on the CTA section.
+              If set, this replaces the auto-generated body text on the public admissions CTA.
             </p>
           </div>
           <div className="flex justify-end">
@@ -358,6 +550,160 @@ export function SettingsClient({ bankAccounts: initialAccounts, admissionSetting
               {savingAdmission ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
               Save Admissions
             </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Application sessions */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="font-serif text-base">Application Sessions</CardTitle>
+          <CardDescription className="text-xs">
+            One session can be open at a time. Frontend admissions state comes from the session marked open and still within its date window.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label htmlFor="period-title">Academic session</Label>
+              <Button
+                id="period-title"
+                type="button"
+                variant="outline"
+                className="w-full justify-start px-2.5 font-normal"
+                onClick={() => setAcademicSessionPickerOpen((open) => !open)}
+              >
+                <CalendarIcon data-icon="inline-start" />
+                {periodForm.title || "Pick academic session"}
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                Pick session start year. We save it as &quot;2026/2027&quot; automatically.
+              </p>
+              {academicSessionPickerOpen && (
+                <div className="rounded-xl border p-3">
+                  <Calendar
+                    mode="single"
+                    selected={selectedCreateAcademicSession}
+                    defaultMonth={selectedCreateAcademicSession ?? new Date()}
+                    captionLayout="dropdown"
+                    startMonth={new Date(2000, 0, 1)}
+                    endMonth={new Date(2100, 11, 31)}
+                    onSelect={(date) => {
+                      if (!date) return;
+                      setPeriodField("title", formatAcademicSession(date));
+                      setAcademicSessionPickerOpen(false);
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="application-start">Application starts</Label>
+              <Input
+                id="application-start"
+                type="datetime-local"
+                value={periodForm.applicationStartDate}
+                onChange={(event) => setPeriodField("applicationStartDate", event.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="application-end">Application ends</Label>
+              <Input
+                id="application-end"
+                type="datetime-local"
+                value={periodForm.applicationEndDate}
+                onChange={(event) => setPeriodField("applicationEndDate", event.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="exam-start">Exam starts</Label>
+              <Input
+                id="exam-start"
+                type="datetime-local"
+                value={periodForm.examStartDate}
+                onChange={(event) => setPeriodField("examStartDate", event.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="exam-end">Exam ends</Label>
+              <Input
+                id="exam-end"
+                type="datetime-local"
+                value={periodForm.examEndDate}
+                onChange={(event) => setPeriodField("examEndDate", event.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="registration-fee">Application fee</Label>
+              <Input
+                id="registration-fee"
+                type="number"
+                min="0"
+                value={periodForm.registrationFee}
+                onChange={(event) => setPeriodField("registrationFee", event.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="period-currency">Currency</Label>
+              <Input
+                id="period-currency"
+                value={periodForm.currency}
+                onChange={(event) => setPeriodField("currency", event.target.value)}
+              />
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <Button size="sm" onClick={handleCreatePeriod} disabled={creatingPeriod} className="gap-1.5">
+              {creatingPeriod ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+              Create Session
+            </Button>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-3">
+            {periods.length === 0 ? (
+              <div className="rounded-lg border border-dashed py-8 text-center text-sm text-muted-foreground">
+                No application sessions yet.
+              </div>
+            ) : (
+              periods.map((period) => (
+                <div key={period.id} className="rounded-lg border bg-card px-4 py-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-semibold">{period.title}</p>
+                        <Badge variant="outline" className="capitalize">{period.status}</Badge>
+                      </div>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {formatDate(period.applicationStartDate)} to {formatDate(period.applicationEndDate)} · {formatCurrency(Number(period.registrationFee), period.currency)}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button size="sm" variant="ghost" onClick={() => openEditPeriod(period)}>
+                        <Edit2 className="h-3.5 w-3.5" />
+                        Edit
+                      </Button>
+                      {period.status !== "open" && (
+                        <Button size="sm" variant="outline" onClick={() => handlePeriodStatus(period.id, "open")}>
+                          Open
+                        </Button>
+                      )}
+                      {period.status === "open" && (
+                        <Button size="sm" variant="outline" onClick={() => handlePeriodStatus(period.id, "closed")}>
+                          Close
+                        </Button>
+                      )}
+                      {period.status !== "archived" && (
+                        <Button size="sm" variant="ghost" onClick={() => handlePeriodStatus(period.id, "archived")}>
+                          Archive
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </CardContent>
       </Card>
@@ -479,7 +825,7 @@ export function SettingsClient({ bankAccounts: initialAccounts, admissionSetting
                   size="icon"
                   variant="ghost"
                   className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                  onClick={() => handleDelete(account)}
+                  onClick={() => setAccountToDelete(account)}
                   disabled={deletingId === account.id}
                   title="Delete"
                 >
@@ -506,6 +852,112 @@ export function SettingsClient({ bankAccounts: initialAccounts, admissionSetting
           Save Settings
         </Button>
       </div>
+
+      <Dialog open={!!editingPeriod} onOpenChange={(open) => !open && closeEditPeriod()}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-serif">Edit Application Session</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-1">
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-period-title">Academic session</Label>
+              <Button
+                id="edit-period-title"
+                type="button"
+                variant="outline"
+                className="w-full justify-start px-2.5 font-normal"
+                onClick={() => setEditingPeriodPickerOpen((open) => !open)}
+              >
+                <CalendarIcon data-icon="inline-start" />
+                {editPeriodForm.title || "Pick academic session"}
+              </Button>
+              {editingPeriodPickerOpen && (
+                <div className="rounded-xl border p-3">
+                  <Calendar
+                    mode="single"
+                    selected={selectedEditAcademicSession}
+                    defaultMonth={selectedEditAcademicSession ?? new Date()}
+                    captionLayout="dropdown"
+                    startMonth={new Date(2000, 0, 1)}
+                    endMonth={new Date(2100, 11, 31)}
+                    onSelect={(date) => {
+                      if (!date) return;
+                      setEditPeriodField("title", formatAcademicSession(date));
+                      setEditingPeriodPickerOpen(false);
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-application-start">Application starts</Label>
+                <Input
+                  id="edit-application-start"
+                  type="datetime-local"
+                  value={editPeriodForm.applicationStartDate}
+                  onChange={(event) => setEditPeriodField("applicationStartDate", event.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-application-end">Application ends</Label>
+                <Input
+                  id="edit-application-end"
+                  type="datetime-local"
+                  value={editPeriodForm.applicationEndDate}
+                  onChange={(event) => setEditPeriodField("applicationEndDate", event.target.value)}
+                />
+              </div>
+            </div>
+            {editingPeriod && (
+              <p className="text-xs text-muted-foreground">
+                Exam dates, fee, and eligible classes stay as created for this flow.
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={closeEditPeriod} disabled={updatingPeriod}>
+              <X className="h-3.5 w-3.5 mr-1.5" />
+              Cancel
+            </Button>
+            <Button onClick={handleUpdatePeriod} disabled={updatingPeriod} className="gap-1.5">
+              {updatingPeriod ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Check className="h-3.5 w-3.5" />
+              )}
+              Save Session
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!accountToDelete} onOpenChange={(open) => !open && setAccountToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete bank account?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {accountToDelete
+                ? `Delete "${accountToDelete.bankName} - ${accountToDelete.accountNumber}"? This cannot be undone.`
+                : ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingId === accountToDelete?.id}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => accountToDelete && handleDelete(accountToDelete)}
+              disabled={deletingId === accountToDelete?.id}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {deletingId === accountToDelete?.id ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Deleting...</>
+              ) : (
+                "Delete"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Add / Edit Bank Account Dialog */}
       <Dialog open={showDialog} onOpenChange={(open) => !open && closeDialog()}>

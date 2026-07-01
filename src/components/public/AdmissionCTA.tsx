@@ -2,7 +2,13 @@ import { FadeIn } from '@/components/animations/FadeIn';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, BookOpen, FileText, Mail } from 'lucide-react';
 import Link from 'next/link';
+import { connection } from 'next/server';
 import { getAdmissionSettings } from '@/server/queries/settings.queries';
+import {
+  getActiveApplicationPeriod,
+  getLatestOpenApplicationPeriod,
+} from '@/server/queries/applications.queries';
+import { formatDate } from '@/lib/utils';
 
 const features = [
   {
@@ -28,15 +34,27 @@ const features = [
 ];
 
 export async function AdmissionCTA() {
-  const settings = await getAdmissionSettings();
-  const isOpen = settings?.isOpen ?? false;
-  const session = settings?.academicSession?.trim() ?? "";
+  await connection();
+  const [settings, period, latestOpenPeriod] = await Promise.all([
+    getAdmissionSettings(),
+    getActiveApplicationPeriod(),
+    getLatestOpenApplicationPeriod(),
+  ]);
+  const isOpen = !!period;
+  const displayPeriod = period ?? latestOpenPeriod;
+  const session = displayPeriod?.title.trim() ?? "";
   const notes = settings?.notes?.trim() ?? null;
+  const opensSoon =
+    !period &&
+    !!latestOpenPeriod &&
+    new Date() < new Date(latestOpenPeriod.applicationStartDate);
 
   const bodyText = notes
     ? notes
     : isOpen
       ? `Join a community of learners destined to make an impact. Applications for the${session ? ` ${session}` : ""} academic year are now open.`
+      : opensSoon
+        ? `Applications for the${session ? ` ${session}` : ""} academic year open on ${formatDate(latestOpenPeriod.applicationStartDate, "MMMM d, yyyy")}.`
       : "Join a community of learners destined to make an impact. Register your interest and we'll notify you when the next admission cycle opens.";
 
   return (
@@ -78,6 +96,18 @@ export async function AdmissionCTA() {
                       <Link href="/admissions">Learn About Admissions</Link>
                     </Button>
                   </>
+                ) : opensSoon ? (
+                  <Button
+                    asChild
+                    size="lg"
+                    variant="secondary"
+                    className="font-medium gap-2"
+                  >
+                    <Link href="/entrance-exam">
+                      View Session Dates
+                      <ArrowRight className="h-4 w-4" />
+                    </Link>
+                  </Button>
                 ) : (
                   <Button
                     asChild

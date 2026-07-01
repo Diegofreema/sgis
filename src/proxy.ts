@@ -4,8 +4,8 @@ import { db, profiles } from "@/db";
 import { eq } from "drizzle-orm";
 import { normalizeUserRole } from "@/constants/roles";
 
-/** Auth-only paths — authenticated users are sent to /dashboard instead. */
-const AUTH_PATHS = ["/login", "/register", "/forgot-password"];
+/** Auth-only paths — authenticated admins are sent to /admin instead. */
+const AUTH_PATHS = ["/login", "/forgot-password"];
 
 export async function proxy(request: NextRequest) {
   const { user, response } = await updateSession(request);
@@ -32,17 +32,10 @@ export async function proxy(request: NextRequest) {
 
   // ─── Redirect authenticated users away from all auth pages ──────────
   if (user && AUTH_PATHS.some((p) => pathname.startsWith(p))) {
-    const role = normalizeUserRole(currentProfile?.role);
-    const redirectTo =
-      role === "admin"
-        ? "/admin"
-        : role === "student" && currentProfile?.requiresPasswordChange
-          ? "/dashboard/profile?password=required"
-          : "/dashboard";
-    return NextResponse.redirect(new URL(redirectTo, request.url));
+    return NextResponse.redirect(new URL("/admin", request.url));
   }
 
-  // ─── Protect dashboard routes ────────────────────────────────────────
+  // ─── Disable old parent/student dashboard routes ─────────────────────
   if (pathname.startsWith("/dashboard")) {
     if (!user) {
       const redirectUrl = new URL("/login", request.url);
@@ -50,17 +43,7 @@ export async function proxy(request: NextRequest) {
       return NextResponse.redirect(redirectUrl);
     }
 
-    if (
-      normalizeUserRole(currentProfile?.role) === "student" &&
-      currentProfile?.requiresPasswordChange &&
-      pathname !== "/dashboard/profile"
-    ) {
-      return NextResponse.redirect(
-        new URL("/dashboard/profile?password=required", request.url)
-      );
-    }
-
-    return response;
+    return NextResponse.redirect(new URL("/admin", request.url));
   }
 
   // ─── Protect admin routes ────────────────────────────────────────────
@@ -74,10 +57,10 @@ export async function proxy(request: NextRequest) {
     try {
       const role = normalizeUserRole(currentProfile?.role);
       if (role !== "admin") {
-        return NextResponse.redirect(new URL("/dashboard", request.url));
+        return NextResponse.redirect(new URL("/login", request.url));
       }
     } catch {
-      return NextResponse.redirect(new URL("/dashboard", request.url));
+      return NextResponse.redirect(new URL("/login", request.url));
     }
 
     return response;

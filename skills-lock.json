@@ -31,6 +31,12 @@
       "skillPath": "skill/SKILL.md",
       "computedHash": "34e59a34b9705187e87039faa5d9585aebe0056ef657f761b905afef276a3362"
     },
+    "ponytail": {
+      "source": "dietrichgebert/ponytail",
+      "sourceType": "github",
+      "skillPath": "skills/ponytail/SKILL.md",
+      "computedHash": "9c2a14a09838e12a6bc248e054529fe494060c0d8b78a7ff8e1696a980a12eee"
+    },
     "react-three-fiber": {
       "source": "vercel-labs/json-render",
       "sourceType": "github",

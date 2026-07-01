@@ -92,11 +92,14 @@ export default async function ResultsPage({ searchParams }: Props) {
             attempt
               ? {
                   ...attempt,
+                  questionOrder: attempt.questionOrder,
                   status: attempt.status as ExamAttemptStatus,
                   startedAt: attempt.startedAt.toISOString(),
                   submittedAt: attempt.submittedAt?.toISOString() ?? null,
                   expiresAt: attempt.expiresAt.toISOString(),
                   score: attempt.score !== null ? Number(attempt.score) : null,
+                  totalMarks: attempt.totalMarks,
+                  passed: attempt.passed,
                   createdAt: attempt.createdAt.toISOString(),
                   updatedAt: attempt.updatedAt.toISOString(),
                 }
@@ -163,17 +166,19 @@ export default async function ResultsPage({ searchParams }: Props) {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="font-serif text-lg">{exam?.title}</CardTitle>
-                <Badge className={
-                  Number(attempt.score) >= (exam?.passingScore ?? 50)
-                    ? "bg-success/20 text-success border-success/30"
-                    : "bg-destructive/20 text-destructive border-destructive/30"
-                }>
-                  {Number(attempt.score) >= (exam?.passingScore ?? 50) ? "Passed" : "Failed"}
+                <Badge
+                  className={
+                    attempt.passed
+                      ? "bg-success/20 text-success border-success/30"
+                      : "bg-destructive/20 text-destructive border-destructive/30"
+                  }
+                >
+                  {attempt.passed ? "Passed" : "Failed"}
                 </Badge>
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="grid grid-cols-3 gap-4 text-center">
+              <div className="grid grid-cols-4 gap-4 text-center">
                 <div className="space-y-1">
                   <p className="font-serif text-4xl font-bold text-primary">
                     {attempt.score ?? "—"}
@@ -190,7 +195,15 @@ export default async function ResultsPage({ searchParams }: Props) {
                   <p className="font-serif text-4xl font-bold text-muted-foreground">
                     {exam?.passingScore ?? "—"}
                   </p>
-                  <p className="text-xs text-muted-foreground">Pass Mark</p>
+                  <p className="text-xs text-muted-foreground">Pass %</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="font-serif text-4xl font-bold text-muted-foreground">
+                    {attempt.score !== null && (attempt.totalMarks ?? exam?.totalMarks ?? 0) > 0
+                      ? `${Math.round((Number(attempt.score) / Number(attempt.totalMarks ?? exam?.totalMarks ?? 1)) * 100)}%`
+                      : "—"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Percentage</p>
                 </div>
               </div>
 

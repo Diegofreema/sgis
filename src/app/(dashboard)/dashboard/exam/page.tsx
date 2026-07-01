@@ -46,6 +46,7 @@ export default async function ExamEntryPage({ searchParams }: Props) {
   let exam = null;
   let attempt = null;
   let application = null;
+  let period = null;
 
   if (db) {
     application = await db
@@ -61,7 +62,7 @@ export default async function ExamEntryPage({ searchParams }: Props) {
       .then((r) => r[0] ?? null);
 
     if (application) {
-      const period = await db
+      period = await db
         .select()
         .from(applicationPeriods)
         .where(eq(applicationPeriods.id, application.applicationPeriodId))
@@ -101,6 +102,8 @@ export default async function ExamEntryPage({ searchParams }: Props) {
   const hasSubmitted =
     attempt?.status === "submitted" || attempt?.status === "graded";
   const inProgress = attempt?.status === "in_progress";
+  const examNotStarted = period && new Date() < new Date(period.examStartDate);
+  const examClosed = period && new Date() > new Date(period.examEndDate);
 
   return (
     <div className="space-y-8 max-w-2xl">
@@ -147,6 +150,26 @@ export default async function ExamEntryPage({ searchParams }: Props) {
               <p className="font-medium text-foreground">No Active Examination</p>
               <p className="text-sm text-muted-foreground">
                 No examination is currently scheduled. You&apos;ll be notified when one is available.
+              </p>
+            </CardContent>
+          </Card>
+        ) : examNotStarted ? (
+          <Card className="border-muted">
+            <CardContent className="py-12 text-center space-y-3">
+              <Clock className="h-12 w-12 text-muted-foreground/40 mx-auto" />
+              <p className="font-medium text-foreground">Exam Has Not Started</p>
+              <p className="text-sm text-muted-foreground">
+                This exam opens on {period ? formatDate(period.examStartDate.toISOString()) : "—"}.
+              </p>
+            </CardContent>
+          </Card>
+        ) : examClosed ? (
+          <Card className="border-muted">
+            <CardContent className="py-12 text-center space-y-3">
+              <Clock className="h-12 w-12 text-muted-foreground/40 mx-auto" />
+              <p className="font-medium text-foreground">Exam Window Closed</p>
+              <p className="text-sm text-muted-foreground">
+                This exam closed on {period ? formatDate(period.examEndDate.toISOString()) : "—"}.
               </p>
             </CardContent>
           </Card>

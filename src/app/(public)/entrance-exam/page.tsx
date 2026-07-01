@@ -1,184 +1,536 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { ArrowRight, Clock, Calendar, CheckCircle2, AlertCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import type { ReactNode } from "react";
+import Image from "next/image";
+import { connection } from "next/server";
+import {
+  AlertCircle,
+  CheckCircle2,
+  Clock,
+  Landmark,
+  Search,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { FadeIn } from "@/components/animations/FadeIn";
-import { StaggerChildren, StaggerItem } from "@/components/animations/StaggerChildren";
-import { getActiveApplicationPeriod } from "@/server/queries/applications.queries";
-import { getCurrentProfile } from "@/lib/auth";
-import { formatDate, formatCurrency } from "@/lib/utils";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  getActiveApplicationPeriod,
+  getAllApplicationPeriods,
+  getLatestOpenApplicationPeriod,
+} from "@/server/queries/applications.queries";
+import { getActiveBankAccounts } from "@/server/queries/bank-accounts.queries";
+import {
+  getPublicExamAccess,
+  getPublicExamDiscovery,
+  type PublicExamAccess,
+  type PublicExamDiscovery,
+} from "@/server/queries/exams.queries";
+import { formatCurrency, formatDate } from "@/lib/utils";
+import { siteConfig } from "@/config/site";
+import {
+  ApplicationTracker,
+  PrintButton,
+  PublicApplicationForm,
+  PublicExamSessionPicker,
+  PublicExamVerificationCard,
+} from "./ApplicationClient";
 
 export const metadata: Metadata = {
   title: "Entrance Examination",
   description: "Apply for the Sankt Georg International School entrance examination.",
 };
 
-export default async function EntranceExamPage() {
-  const [period, profile] = await Promise.all([
+type Props = {
+  searchParams: Promise<{
+    applicationId?: string;
+    error?: string;
+    session?: string;
+    examError?: string;
+  }>;
+};
+
+export default async function EntranceExamPage({ searchParams }: Props) {
+  await connection();
+  const params = await searchParams;
+
+  const [period, latestOpenPeriod, bankAccounts, trackedAccess, allPeriods] = await Promise.all([
     getActiveApplicationPeriod(),
-    getCurrentProfile(),
+    getLatestOpenApplicationPeriod(),
+    getActiveBankAccounts(),
+    params.applicationId
+      ? getPublicExamAccess({
+          applicationCode: params.applicationId,
+        })
+      : Promise.resolve<PublicExamAccess | null>(null),
+    getAllApplicationPeriods(),
   ]);
 
-  const isOpen = !!period;
-  const applyHref = profile ? "/dashboard/application" : "/register";
+  const publicExamSessions = sortPublicExamSessions(allPeriods);
+  const defaultExamSession = publicExamSessions[0] ?? null;
+  const requestedExamSession = params.session
+    ? publicExamSessions.find((session) => session.id === params.session) ?? null
+    : null;
+  const selectedExamSession = requestedExamSession ?? defaultExamSession;
+  const sessionParamInvalid = Boolean(params.session) && !requestedExamSession;
+  const selectedDiscovery =
+    selectedExamSession && !sessionParamInvalid
+      ? await getPublicExamDiscovery(selectedExamSession.id)
+      : null;
 
-  const steps = [
-    { step: "01", title: "Create an Account", desc: "Register on our portal to get started." },
-    { step: "02", title: "Complete Your Profile", desc: "Fill in your personal and academic information." },
-    { step: "03", title: "Pay Registration Fee", desc: "Pay into the school's bank account and upload your receipt." },
-    { step: "04", title: "Write the Exam", desc: "Take the online examination on the scheduled date." },
-    { step: "05", title: "Await Results", desc: "Results will be communicated after review." },
-    { step: "06", title: "Receive Offer", desc: "Successful candidates receive an admission offer." },
-  ];
+  const displayPeriod = period ?? latestOpenPeriod;
+  const hasScheduledOpenPeriod =
+    !period &&
+    !!latestOpenPeriod &&
+    new Date() < new Date(latestOpenPeriod.applicationStartDate);
+  const hasExpiredOpenPeriod =
+    !period &&
+    !!latestOpenPeriod &&
+    new Date() > new Date(latestOpenPeriod.applicationEndDate);
 
   return (
     <>
-      {/* Hero */}
-      <section className="pt-28 pb-16 bg-linear-to-b from-secondary/40 to-background">
+      <section className="bg-linear-to-b from-secondary/40 to-background pb-10 pt-28 print:hidden">
         <div className="container mx-auto container-padding">
-          <FadeIn className="max-w-2xl mx-auto text-center">
-            <p className="text-sm font-medium text-primary uppercase tracking-wider mb-4">
-              Join Our School
-            </p>
-            <h1 className="text-h1 font-serif font-bold text-foreground mb-6 leading-tight">
-              Entrance Examination
+          <div className="max-w-3xl space-y-4">
+            <p className="text-sm font-medium uppercase tracking-wider text-primary">Admissions</p>
+            <h1 className="font-serif text-h1 font-bold leading-tight text-foreground">
+              Entrance Examination Application
             </h1>
-            <p className="text-xl text-muted-foreground leading-relaxed">
-              Our entrance examination assesses academic readiness, critical thinking,
-              and potential. It is the first step toward an extraordinary education.
+            <p className="text-lg leading-relaxed text-muted-foreground">
+              Apply for the common entrance examination, upload your payment receipt, then use your application ID to track your application and exam access.
             </p>
-            {isOpen && (
-              <div className="mt-8 flex items-center justify-center gap-3">
-                <Button asChild size="lg" className="gap-2 font-medium shadow-brand-sm">
-                  <Link href={applyHref}>
-                    Apply Now <ArrowRight className="h-4 w-4" />
-                  </Link>
-                </Button>
-                <Button asChild size="lg" variant="outline">
-                  <Link href="/admissions">Learn More</Link>
-                </Button>
+          </div>
+        </div>
+      </section>
+
+      <section id="status" className="py-8 print:py-0">
+        <div className="container mx-auto container-padding">
+          <Card className="print:border-0 print:shadow-none">
+            <CardHeader className="print:hidden">
+              <CardTitle className="font-serif text-lg">Track application and exam</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <div className="print:hidden">
+                <ApplicationTracker />
               </div>
-            )}
-          </FadeIn>
-        </div>
-      </section>
 
-      {/* Application status card */}
-      <section className="py-12">
-        <div className="container mx-auto container-padding">
-          <FadeIn className="max-w-2xl mx-auto">
-            {isOpen && period ? (
-              <Card className="border-success/30 bg-success/5">
-                <CardContent className="p-6 space-y-4">
-                  <div className="flex items-center gap-3">
-                    <CheckCircle2 className="h-6 w-6 text-success shrink-0" />
-                    <div className="min-w-0">
-                      <h2 className="font-serif font-semibold text-foreground">
-                        Applications Are Open
-                      </h2>
-                      <p className="text-sm text-muted-foreground truncate">
-                        {period.title}
-                      </p>
+              {!params.applicationId && !params.error && (
+                <SearchStateCard
+                  icon={<SearchIcon />}
+                  title="No application selected"
+                  description="Enter your application ID to view your application status."
+                />
+              )}
+
+              {params.error && (
+                <SearchStateCard
+                  tone="error"
+                  icon={<AlertCircle className="h-5 w-5" />}
+                  title="Something went wrong"
+                  description={params.error}
+                />
+              )}
+
+              {trackedAccess?.state === "not_found" && (
+                <SearchStateCard
+                  tone="error"
+                  icon={<AlertCircle className="h-5 w-5" />}
+                  title="Application not found"
+                  description="Check the application ID and try again."
+                />
+              )}
+
+              {trackedAccess?.application && trackedAccess.period && (
+                <div className="space-y-5">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="flex items-start gap-4">
+                      <Image
+                        src="/logo.jpeg"
+                        alt={siteConfig.name}
+                        width={64}
+                        height={64}
+                        className="rounded-lg object-cover"
+                      />
+                      <div>
+                        <h2 className="font-serif text-xl font-semibold">{siteConfig.name}</h2>
+                        <p className="text-sm text-muted-foreground">
+                          {siteConfig.address.street}, {siteConfig.address.city}, {siteConfig.address.country}
+                        </p>
+                        <p className="mt-2 font-mono text-sm font-semibold">
+                          {trackedAccess.application.applicationCode}
+                        </p>
+                      </div>
                     </div>
-                    <Badge className="ml-auto shrink-0 bg-success/20 text-success border-success/30">
-                      Open
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <StatusBadge status={trackedAccess.application.status} />
+                      <PrintButton label="Print status" />
+                    </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Calendar className="h-4 w-4 text-primary shrink-0" />
-                      <span>Closes: {formatDate(period.applicationEndDate.toISOString())}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Clock className="h-4 w-4 text-primary shrink-0" />
-                      <span>Exam: {formatDate(period.examStartDate.toISOString())}</span>
-                    </div>
-                  </div>
+                  <dl className="grid gap-3 text-sm sm:grid-cols-2">
+                    <Info
+                      label="Applicant"
+                      value={`${trackedAccess.application.firstName} ${trackedAccess.application.lastName}`}
+                    />
+                    <Info label="Application ID" value={trackedAccess.application.applicationCode} />
+                    <Info label="Session" value={trackedAccess.period.title} />
+                    <Info
+                      label="Submitted"
+                      value={
+                        trackedAccess.application.submittedAt
+                          ? formatDate(trackedAccess.application.submittedAt)
+                          : "Pending"
+                      }
+                    />
+                  </dl>
 
-                  <div className="flex items-center justify-between pt-2 border-t border-border">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Registration Fee</p>
-                      <p className="font-semibold text-foreground">
-                        {formatCurrency(Number(period.registrationFee), period.currency)}
-                      </p>
-                    </div>
-                    <Button asChild className="gap-2 font-medium shadow-brand-sm">
-                      <Link href={applyHref}>
-                        {profile ? "Go to Application" : "Apply Now"}{" "}
-                        <ArrowRight className="h-4 w-4" />
-                      </Link>
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ) : (
-              <Card className="border-muted">
-                <CardContent className="p-8 text-center space-y-4">
-                  <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto" />
-                  <div>
-                    <h2 className="font-serif text-xl font-semibold text-foreground mb-2">
-                      Applications Are Currently Closed
-                    </h2>
-                    <p className="text-muted-foreground leading-relaxed">
-                      Entrance examination applications are currently closed. Please
-                      check back later or follow our announcements for updates on
-                      the next application window.
-                    </p>
-                  </div>
-                  <div className="flex gap-3 justify-center">
-                    <Button asChild variant="outline" className="font-medium">
-                      <Link href="/news">View Announcements</Link>
-                    </Button>
-                    <Button asChild variant="outline" className="font-medium">
-                      <Link href="/contact">Contact Admissions</Link>
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </FadeIn>
-        </div>
-      </section>
+                  {trackedAccess.application.status === "rejected" &&
+                    trackedAccess.application.rejectionReason && (
+                      <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm">
+                        <p className="font-medium text-destructive">Application rejected</p>
+                        <p className="mt-1 text-muted-foreground">
+                          {trackedAccess.application.rejectionReason}
+                        </p>
+                      </div>
+                    )}
 
-      {/* Process steps */}
-      <section className="section-padding bg-muted/20">
-        <div className="container mx-auto container-padding">
-          <FadeIn className="text-center mb-12 space-y-3">
-            <p className="text-sm font-medium text-primary uppercase tracking-wider">
-              The Process
-            </p>
-            <h2 className="text-h2 font-serif font-bold text-foreground">
-              How It Works
-            </h2>
-          </FadeIn>
-          <StaggerChildren className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {steps.map((s) => (
-              <StaggerItem key={s.step}>
-                <div className="glass-card rounded-2xl p-6 space-y-3 h-full">
-                  <p className="font-serif text-3xl font-bold text-primary/30">{s.step}</p>
-                  <h3 className="font-serif font-semibold text-foreground">{s.title}</h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{s.desc}</p>
+                  {trackedAccess.application.status === "approved" ? (
+                    <div className="rounded-lg border border-success/30 bg-success/5 p-4 print:break-before-page">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="font-medium text-success">Application approved</p>
+                          <p className="text-sm text-muted-foreground">
+                            Use the secure exam access section below to start or continue your exam.
+                          </p>
+                        </div>
+                        <PrintButton label="Print ID" />
+                      </div>
+                      <div className="mt-4 rounded-lg border bg-background p-4">
+                        <div className="flex items-center gap-4">
+                          <Image
+                            src="/logo.jpeg"
+                            alt={siteConfig.name}
+                            width={48}
+                            height={48}
+                            className="rounded-md object-cover"
+                          />
+                          <div>
+                            <p className="font-serif font-semibold">{siteConfig.name}</p>
+                            <p className="text-xs text-muted-foreground">Entrance Examination ID Card</p>
+                          </div>
+                        </div>
+                        <div className="mt-4">
+                          <dl className="grid gap-2 text-sm">
+                            <Info
+                              label="Name"
+                              value={`${trackedAccess.application.firstName} ${trackedAccess.application.lastName}`}
+                            />
+                            <Info label="Application ID" value={trackedAccess.application.applicationCode} />
+                            <Info label="Session" value={trackedAccess.period.title} />
+                          </dl>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border border-warning/30 bg-warning/5 p-4 text-sm text-muted-foreground print:hidden">
+                      Secure exam access becomes available after admin approval.
+                    </div>
+                  )}
                 </div>
-              </StaggerItem>
-            ))}
-          </StaggerChildren>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </section>
 
-          {/* Bottom CTA */}
-          {isOpen && (
-            <FadeIn className="mt-12 text-center">
-              <Button asChild size="lg" className="gap-2 font-medium shadow-brand-sm">
-                <Link href={applyHref}>
-                  {profile ? "Continue to Application" : "Start Your Application"}{" "}
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-              </Button>
-            </FadeIn>
-          )}
+      <section id="exam-access" className="pb-8 print:hidden">
+        <div className="container mx-auto container-padding">
+          <Card>
+            <CardHeader>
+              <CardTitle className="font-serif text-lg">Take your exam</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              {publicExamSessions.length > 0 ? (
+                <PublicExamSessionPicker
+                  sessions={publicExamSessions.map((session) => ({
+                    id: session.id,
+                    title: session.title,
+                  }))}
+                  selectedSessionId={selectedExamSession?.id ?? ""}
+                />
+              ) : (
+                <SearchStateCard
+                  icon={<AlertCircle className="h-5 w-5" />}
+                  title="No session available"
+                  description="No exam session is available right now."
+                />
+              )}
+
+              {sessionParamInvalid && (
+                <SearchStateCard
+                  tone="error"
+                  icon={<AlertCircle className="h-5 w-5" />}
+                  title="Session not found"
+                  description="Pick a valid session to continue."
+                />
+              )}
+
+              {!sessionParamInvalid && selectedDiscovery && (
+                <PublicExamDiscoverySection
+                  discovery={selectedDiscovery}
+                  applicationId={params.applicationId}
+                  examError={params.examError}
+                />
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
+      <section className="section-padding bg-muted/20 print:hidden">
+        <div className="container mx-auto container-padding">
+          <div className="grid gap-6 lg:grid-cols-[1fr_1.6fr]">
+            <div className="space-y-4">
+              <Card>
+                <CardContent className="space-y-4 p-5">
+                  {displayPeriod ? (
+                    <>
+                      {period ? (
+                        <div className="flex items-center gap-2 text-success">
+                          <CheckCircle2 className="h-5 w-5" />
+                          <p className="font-medium">Applications are open</p>
+                        </div>
+                      ) : hasScheduledOpenPeriod ? (
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 text-primary">
+                            <Clock className="h-5 w-5" />
+                            <p className="font-medium">Applications open soon</p>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            Applications for this session open on{" "}
+                            {formatDate(displayPeriod.applicationStartDate, "MMMM d, yyyy 'at' h:mm a")}.
+                          </p>
+                        </div>
+                      ) : hasExpiredOpenPeriod ? (
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <AlertCircle className="h-5 w-5" />
+                            <p className="font-medium">Application window has ended</p>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            This session closed on{" "}
+                            {formatDate(displayPeriod.applicationEndDate, "MMMM d, yyyy 'at' h:mm a")}.
+                          </p>
+                        </div>
+                      ) : null}
+                      <Info label="Academic session" value={displayPeriod.title} />
+                      <Info label="Application opens" value={formatDate(displayPeriod.applicationStartDate)} />
+                      <Info label="Application closes" value={formatDate(displayPeriod.applicationEndDate)} />
+                      <Info label="Exam starts" value={formatDate(displayPeriod.examStartDate)} />
+                      <Info label="Application fee" value={formatCurrency(Number(displayPeriod.registrationFee), displayPeriod.currency)} />
+                    </>
+                  ) : (
+                    <div className="space-y-2">
+                      <AlertCircle className="h-6 w-6 text-muted-foreground" />
+                      <p className="font-medium">Applications are closed</p>
+                      <p className="text-sm text-muted-foreground">
+                        Check back later for the next session.
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {bankAccounts.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 font-serif text-base">
+                      <Landmark className="h-4 w-4" />
+                      Payment account
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {bankAccounts.map((account) => (
+                      <div key={account.id} className="rounded-lg border bg-background p-3 text-sm">
+                        <p className="font-medium">{account.bankName}</p>
+                        <p>{account.accountName}</p>
+                        <p className="font-mono text-base font-semibold">{account.accountNumber}</p>
+                        {account.notes && <p className="mt-2 text-xs text-muted-foreground">{account.notes}</p>}
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="font-serif text-lg">Apply now</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {period ? (
+                  <PublicApplicationForm />
+                ) : hasScheduledOpenPeriod && displayPeriod ? (
+                  <div className="rounded-lg border bg-muted/30 p-8 text-center text-sm text-muted-foreground">
+                    Applications for this session open on{" "}
+                    {formatDate(displayPeriod.applicationStartDate, "MMMM d, yyyy 'at' h:mm a")}.
+                  </div>
+                ) : (
+                  <div className="rounded-lg border bg-muted/30 p-8 text-center text-sm text-muted-foreground">
+                    The application form will be available when admissions open.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </section>
     </>
   );
+}
+
+function SearchStateCard({
+  title,
+  description,
+  icon,
+  tone = "neutral",
+}: {
+  title: string;
+  description: string;
+  icon: ReactNode;
+  tone?: "neutral" | "error";
+}) {
+  const classes =
+    tone === "error"
+      ? "border-destructive/30 bg-destructive/5 text-destructive"
+      : "border-border bg-muted/30 text-muted-foreground";
+
+  return (
+    <div className={`rounded-lg border p-4 ${classes}`}>
+      <div className="flex items-start gap-3">
+        <div className="mt-0.5 shrink-0">{icon}</div>
+        <div className="space-y-1">
+          <p className="font-medium text-foreground">{title}</p>
+          <p className="text-sm">{description}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SearchIcon() {
+  return <Search className="h-5 w-5" />;
+}
+
+function Info({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="font-medium text-foreground">{value}</dd>
+    </div>
+  );
+}
+
+function StatusBadge({ status }: { status: string }) {
+  if (status === "approved") {
+    return <Badge className="border-success/30 bg-success/20 text-success">Approved</Badge>;
+  }
+  if (status === "rejected") {
+    return <Badge variant="destructive">Rejected</Badge>;
+  }
+  return <Badge variant="secondary">Pending</Badge>;
+}
+
+function PublicExamDiscoverySection({
+  discovery,
+  applicationId,
+  examError,
+}: {
+  discovery: PublicExamDiscovery;
+  applicationId?: string;
+  examError?: string;
+}) {
+  if (discovery.state === "not_found" || !discovery.period) {
+    return (
+      <SearchStateCard
+        tone="error"
+        icon={<AlertCircle className="h-5 w-5" />}
+        title="Session not found"
+        description="Pick another session to continue."
+      />
+    );
+  }
+
+  if (discovery.state === "no_exam_for_session") {
+    return (
+      <SearchStateCard
+        icon={<AlertCircle className="h-5 w-5" />}
+        title="No exam for this session"
+        description="There is no active exam attached to this session yet."
+      />
+    );
+  }
+
+  if (!discovery.exam) return null;
+
+  return (
+    <div className="grid gap-5 lg:grid-cols-[1.15fr_.85fr]">
+      <div className="rounded-2xl border bg-muted/20 p-5">
+        <div className="space-y-1">
+          <p className="font-serif text-xl font-semibold text-foreground">{discovery.exam.title}</p>
+          <p className="text-sm text-muted-foreground">
+            {discovery.exam.durationMinutes} minutes, {discovery.exam.totalMarks} marks, {discovery.exam.passingScore}% to pass
+          </p>
+        </div>
+
+        <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+          <Info label="Session" value={discovery.period.title} />
+          <Info label="Exam starts" value={formatDate(discovery.period.examStartDate, "MMMM d, yyyy")} />
+          <Info label="Exam closes" value={formatDate(discovery.period.examEndDate, "MMMM d, yyyy")} />
+          <Info label="Status" value={discovery.state === "ready" ? "Open now" : discovery.state === "exam_not_started" ? "Not started" : "Closed"} />
+        </dl>
+
+        {discovery.exam.instructions && (
+          <div className="mt-4 rounded-xl border bg-background p-4 text-sm text-muted-foreground">
+            {discovery.exam.instructions}
+          </div>
+        )}
+      </div>
+
+      {discovery.state === "ready" ? (
+        <PublicExamVerificationCard
+          periodId={discovery.period.id}
+          defaultApplicationCode={applicationId}
+          examError={examError}
+        />
+      ) : (
+        <SearchStateCard
+          icon={<Clock className="h-5 w-5" />}
+          title={discovery.state === "exam_not_started" ? "Exam has not started" : "Exam window has closed"}
+          description={
+            discovery.state === "exam_not_started"
+              ? `This exam opens on ${formatDate(discovery.period.examStartDate, "MMMM d, yyyy 'at' h:mm a")}.`
+              : `This exam closed on ${formatDate(discovery.period.examEndDate, "MMMM d, yyyy 'at' h:mm a")}.`
+          }
+        />
+      )}
+    </div>
+  );
+}
+
+function sortPublicExamSessions(periods: Awaited<ReturnType<typeof getAllApplicationPeriods>>) {
+  const now = Date.now();
+
+  return periods
+    .filter((period) => period.status !== "archived")
+    .sort((left, right) => {
+      const leftCurrentOrFuture = new Date(left.examEndDate).getTime() >= now;
+      const rightCurrentOrFuture = new Date(right.examEndDate).getTime() >= now;
+
+      if (leftCurrentOrFuture !== rightCurrentOrFuture) {
+        return leftCurrentOrFuture ? -1 : 1;
+      }
+
+      return (
+        new Date(right.examStartDate).getTime() - new Date(left.examStartDate).getTime()
+      );
+    });
 }

@@ -1,12 +1,15 @@
 import Image from "next/image";
 import type { Metadata } from "next";
+import { getPublicSchoolSettings } from "@/server/queries/settings.queries";
 
 export const metadata: Metadata = {
   title: "Under Maintenance — SGIS",
   robots: { index: false, follow: false },
 };
 
-export default function MaintenancePage() {
+export default async function MaintenancePage() {
+  const { schoolEmail, schoolPhone } = await getPublicSchoolSettings();
+
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6">
       <div className="flex flex-col items-center gap-8 max-w-md text-center">
@@ -39,16 +42,16 @@ export default function MaintenancePage() {
           <p className="text-xs text-muted-foreground">
             Email:{" "}
             <a
-              href="mailto:sanktgeorginternationalschool@gmail.com"
+              href={`mailto:${schoolEmail}`}
               className="text-primary underline underline-offset-2"
             >
-              sanktgeorginternationalschool@gmail.com
+              {schoolEmail}
             </a>
           </p>
           <p className="text-xs text-muted-foreground">
             Phone:{" "}
-            <a href="tel:+2349165573514" className="text-primary underline underline-offset-2">
-              +234 916 557 3514
+            <a href={`tel:${schoolPhone}`} className="text-primary underline underline-offset-2">
+              {schoolPhone}
             </a>
           </p>
         </div>

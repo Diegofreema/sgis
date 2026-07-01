@@ -8,6 +8,8 @@ import {
   boolean,
   jsonb,
   numeric,
+  primaryKey,
+  index,
 } from "drizzle-orm/pg-core";
 import { profiles } from "./users";
 import { applicationPeriods } from "./applications";
@@ -56,9 +58,7 @@ export type QuestionOptionDb = { id: string; text: string };
 
 export const questions = pgTable("questions", {
   id: uuid("id").primaryKey().defaultRandom(),
-  examId: uuid("exam_id")
-    .notNull()
-    .references(() => exams.id, { onDelete: "cascade" }),
+  examId: uuid("exam_id").references(() => exams.id, { onDelete: "cascade" }),
   questionText: text("question_text").notNull(),
   questionImageUrl: text("question_image_url"),
   // options stored as JSON: [{ id: "a", text: "..." }, ...]
@@ -76,7 +76,28 @@ export const questions = pgTable("questions", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const examQuestions = pgTable(
+  "exam_questions",
+  {
+    examId: uuid("exam_id")
+      .notNull()
+      .references(() => exams.id, { onDelete: "cascade" }),
+    questionId: uuid("question_id")
+      .notNull()
+      .references(() => questions.id, { onDelete: "cascade" }),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.examId, table.questionId] }),
+    examIdx: index("exam_questions_exam_idx").on(table.examId),
+    questionIdx: index("exam_questions_question_idx").on(table.questionId),
+  })
+);
+
 export type Exam = typeof exams.$inferSelect;
 export type NewExam = typeof exams.$inferInsert;
 export type Question = typeof questions.$inferSelect;
 export type NewQuestion = typeof questions.$inferInsert;
+export type ExamQuestion = typeof examQuestions.$inferSelect;
+export type NewExamQuestion = typeof examQuestions.$inferInsert;

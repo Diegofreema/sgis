@@ -1,20 +1,19 @@
-import type { Metadata } from "next";
-import Link from "next/link";
-import { LoginForm } from "@/components/forms/LoginForm";
+import type { Metadata } from 'next';
+import Link from 'next/link';
+import { LoginForm } from '@/components/forms/LoginForm';
 
 export const metadata: Metadata = {
-  title: "Sign In",
-  description: "Sign in to your Sankt Georg student portal.",
+  title: 'Sign In',
+  description: 'Sign in to the Sankt Georg admin panel.',
 };
 
 export default function LoginPage() {
   return (
     <div className="space-y-6">
       <div className="space-y-1.5">
-        <h1 className="font-serif text-2xl font-bold text-foreground">Welcome back</h1>
-        <p className="text-sm text-muted-foreground">
-          Sign in to access your student portal
-        </p>
+        <h1 className="font-serif text-2xl font-bold text-foreground">
+          Sign in
+        </h1>
       </div>
 
       <LoginForm />
@@ -29,9 +28,12 @@ export default function LoginPage() {
           </Link>
         </p>
         <p className="text-muted-foreground">
-          New to Sankt Georg?{" "}
-          <Link href="/register" className="text-primary font-medium hover:underline">
-            Create an account
+          Applying for entrance exam?{' '}
+          <Link
+            href="/entrance-exam"
+            className="text-primary font-medium hover:underline"
+          >
+            Use the application page
           </Link>
         </p>
       </div>

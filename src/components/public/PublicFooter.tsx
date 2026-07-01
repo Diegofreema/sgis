@@ -2,19 +2,21 @@ import Link from 'next/link';
 import { Mail, Phone, MapPin, Globe } from 'lucide-react';
 import { siteConfig } from '@/config/site';
 import { publicNav } from '@/config/navigation';
+import { getPublicSchoolSettings } from '@/server/queries/settings.queries';
 import { BrandLogo } from '../shared/brand-logo';
 
 const footerLinks = {
   school: publicNav,
   quickLinks: [
-    { label: 'Student Portal', href: '/login' },
+    { label: 'Admin Portal', href: '/login' },
     { label: 'Apply Now', href: '/entrance-exam' },
-    { label: 'School Calendar', href: '/news' },
-    { label: 'Downloads', href: '/admissions' },
+    { label: 'News', href: '/news' },
   ],
 };
 
-export function PublicFooter() {
+export async function PublicFooter() {
+  const { schoolEmail, schoolPhone } = await getPublicSchoolSettings();
+
   return (
     <footer className="border-t border-border bg-muted/30">
       <div className="container mx-auto container-padding py-16">
@@ -116,19 +118,19 @@ export function PublicFooter() {
               <li className="flex items-center gap-2.5">
                 <Phone className="h-4 w-4 text-primary shrink-0" />
                 <a
-                  href={`tel:${siteConfig.phone}`}
+                  href={`tel:${schoolPhone}`}
                   className="text-sm text-muted-foreground hover:text-primary transition-colors"
                 >
-                  {siteConfig.phone}
+                  {schoolPhone}
                 </a>
               </li>
               <li className="flex items-center gap-2.5">
                 <Mail className="h-4 w-4 text-primary shrink-0" />
                 <a
-                  href={`mailto:${siteConfig.email}`}
+                  href={`mailto:${schoolEmail}`}
                   className="text-sm text-muted-foreground hover:text-primary transition-colors"
                 >
-                  {siteConfig.email}
+                  {schoolEmail}
                 </a>
               </li>
             </ul>

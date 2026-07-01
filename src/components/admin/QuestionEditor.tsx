@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   ChevronDown,
@@ -30,16 +31,16 @@ import {
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import {
-  createQuestion,
-  updateQuestion,
-  deleteQuestion,
+  createQuestionBankItem,
+  updateQuestionBankItem,
+  deleteQuestionBankItem,
 } from "@/server/actions/admin.actions";
 import type { Question } from "@/db/schema/exams";
+import { PRIMARY_SIX_SUBJECTS } from "@/lib/question-bank";
 
 const OPTION_IDS = ["a", "b", "c", "d"] as const;
 
 type QuestionEditorProps = {
-  examId: string;
   questions: Question[];
   readOnly?: boolean;
 };
@@ -89,9 +90,12 @@ function emptyDraft(sortOrder: number): QuestionDraft {
   };
 }
 
-export function QuestionEditor({ examId, questions: initial, readOnly = false }: QuestionEditorProps) {
-  const [drafts, setDrafts] = useState<QuestionDraft[]>(
-    initial.map((q) => toQuestionDraft(q))
+export function QuestionEditor({ questions: initial, readOnly = false }: QuestionEditorProps) {
+  const router = useRouter();
+  const [drafts, setDrafts] = useState<QuestionDraft[]>(() =>
+    initial.length === 0 && !readOnly
+      ? [emptyDraft(0)]
+      : initial.map((q) => toQuestionDraft(q))
   );
 
   function update(index: number, patch: Partial<QuestionDraft>) {
@@ -125,6 +129,10 @@ export function QuestionEditor({ examId, questions: initial, readOnly = false }:
       toast.error("Question text is required.");
       return;
     }
+    if (!draft.subject.trim()) {
+      toast.error("Select a subject.");
+      return;
+    }
     const emptyOption = draft.options.find((o) => !o.text.trim());
     if (emptyOption) {
       toast.error(`Option ${emptyOption.id.toUpperCase()} cannot be empty.`);
@@ -134,7 +142,6 @@ export function QuestionEditor({ examId, questions: initial, readOnly = false }:
     update(index, { isSaving: true });
 
     const payload = {
-      examId,
       questionText: draft.questionText,
       options: draft.options,
       correctOption: draft.correctOption,
@@ -147,9 +154,9 @@ export function QuestionEditor({ examId, questions: initial, readOnly = false }:
 
     let result;
     if (draft.id) {
-      result = await updateQuestion(draft.id, payload);
+      result = await updateQuestionBankItem(draft.id, payload);
     } else {
-      result = await createQuestion(payload);
+      result = await createQuestionBankItem(payload);
     }
 
     if (result.success) {
@@ -163,6 +170,7 @@ export function QuestionEditor({ examId, questions: initial, readOnly = false }:
       } else {
         update(index, { isSaving: false, isOpen: false });
       }
+      router.refresh();
     } else {
       toast.error(result.error ?? "Failed to save question.");
       update(index, { isSaving: false });
@@ -176,10 +184,11 @@ export function QuestionEditor({ examId, questions: initial, readOnly = false }:
       return;
     }
     update(index, { isSaving: true });
-    const result = await deleteQuestion(draft.id);
+    const result = await deleteQuestionBankItem(draft.id);
     if (result.success) {
       setDrafts((prev) => prev.filter((_, i) => i !== index));
       toast.success("Question deleted.");
+      router.refresh();
     } else {
       toast.error(result.error ?? "Failed to delete question.");
       update(index, { isSaving: false });
@@ -326,14 +335,36 @@ export function QuestionEditor({ examId, questions: initial, readOnly = false }:
                   </div>
                   <div className="space-y-1.5">
                     <Label>Subject</Label>
-                    <Input
-                      value={draft.subject}
-                      onChange={(e) =>
-                        update(i, { subject: e.target.value })
+                    <Select
+                      value={draft.subject || "__none__"}
+                      onValueChange={(value) =>
+                        update(i, {
+                          subject: value === "__none__" ? "" : value,
+                        })
                       }
-                      placeholder="e.g. Maths"
                       disabled={readOnly}
-                    />
+                    >
+                      <SelectTrigger>
+                        <SelectValue>
+                          {draft.subject || "Select subject"}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">Select subject</SelectItem>
+                        {(
+                          draft.subject &&
+                          !PRIMARY_SIX_SUBJECTS.includes(
+                            draft.subject as (typeof PRIMARY_SIX_SUBJECTS)[number]
+                          )
+                            ? [draft.subject, ...PRIMARY_SIX_SUBJECTS]
+                            : PRIMARY_SIX_SUBJECTS
+                        ).map((subject) => (
+                          <SelectItem key={subject} value={subject}>
+                            {subject}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 

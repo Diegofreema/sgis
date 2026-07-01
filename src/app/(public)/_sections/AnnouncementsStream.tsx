@@ -5,7 +5,7 @@
  * Wrapped in <Suspense> by the parent — if this is slow the page still
  * paints the hero and static content first.
  */
-import { listPublicAnnouncements } from "@/server/queries/cms.queries";
+import { getActiveAnnouncement } from "@/server/queries/cms.queries";
 import { AnnouncementBanner } from "@/components/public/AnnouncementBanner";
 import type { Announcement } from "@/types/cms";
 import type { ContentStatus } from "@/constants/statuses";
@@ -13,22 +13,22 @@ import type { ContentStatus } from "@/constants/statuses";
 export async function AnnouncementsStream() {
   let raw;
   try {
-    raw = await listPublicAnnouncements(5);
+    raw = await getActiveAnnouncement();
   } catch (error) {
     console.error("[AnnouncementsStream] Failed to load public announcements", error);
     return null;
   }
 
-  if (raw.length === 0) return null;
+  if (!raw) return null;
 
-  const announcements = raw.map((a) => ({
-    ...a,
-    audience: a.audience as Announcement["audience"],
-    status: a.status as ContentStatus,
-    publishedAt: a.publishedAt?.toISOString() ?? null,
-    createdAt: a.createdAt.toISOString(),
-    updatedAt: a.updatedAt.toISOString(),
-  }));
+  const announcement = {
+    ...raw,
+    audience: raw.audience as Announcement["audience"],
+    status: raw.status as ContentStatus,
+    publishedAt: raw.publishedAt?.toISOString() ?? null,
+    createdAt: raw.createdAt.toISOString(),
+    updatedAt: raw.updatedAt.toISOString(),
+  };
 
-  return <AnnouncementBanner announcements={announcements} />;
+  return <AnnouncementBanner key={announcement.id} announcement={announcement} />;
 }

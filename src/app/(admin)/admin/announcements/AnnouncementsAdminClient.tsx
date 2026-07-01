@@ -1,11 +1,22 @@
 "use client";
 
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useRouter } from "next/navigation";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Bell, Pencil, Plus } from "lucide-react";
+import { Bell, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,6 +29,7 @@ import {
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -33,18 +45,38 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import {
+  ANNOUNCEMENT_BODY_WORD_LIMIT,
+  ANNOUNCEMENT_EXCERPT_WORD_LIMIT,
+  ANNOUNCEMENT_TITLE_WORD_LIMIT,
+  countWords,
+  getAnnouncementLengthIssues,
+} from "@/lib/announcements";
 import { formatDate } from "@/lib/utils";
-import { createAnnouncement, updateAnnouncement } from "@/server/actions/admin.actions";
+import {
+  createAnnouncement,
+  deleteAnnouncement,
+  updateAnnouncement,
+} from "@/server/actions/admin.actions";
 import type { Announcement } from "@/db/schema/announcements";
 
-const schema = z.object({
-  title: z.string().min(1, "Title is required"),
-  body: z.string().min(1, "Body is required"),
-  excerpt: z.string().optional(),
-  audience: z.enum(["public", "students", "parents", "applicants", "admins"]),
-  isImportant: z.boolean(),
-  status: z.enum(["draft", "published"]),
-});
+const schema = z
+  .object({
+    title: z.string().min(1, "Title is required"),
+    body: z.string().min(1, "Body is required"),
+    excerpt: z.string().optional(),
+    isImportant: z.boolean(),
+    status: z.enum(["draft", "published"]),
+  })
+  .superRefine((values, ctx) => {
+    for (const issue of getAnnouncementLengthIssues(values)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [issue.field],
+        message: issue.message,
+      });
+    }
+  });
 
 type FormValues = z.infer<typeof schema>;
 
@@ -53,9 +85,14 @@ type Props = {
 };
 
 export function AnnouncementsAdminClient({ announcements: initial }: Props) {
-  const [items, setItems] = useState<Announcement[]>(initial);
+  const router = useRouter();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Announcement | null>(null);
+  const [pendingAction, setPendingAction] = useState<{
+    announcement: Announcement;
+    type: "archive" | "delete";
+  } | null>(null);
+  const [actionId, setActionId] = useState<string | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -63,11 +100,13 @@ export function AnnouncementsAdminClient({ announcements: initial }: Props) {
       title: "",
       body: "",
       excerpt: "",
-      audience: "public",
       isImportant: false,
       status: "draft",
     },
   });
+  const title = useWatch({ control: form.control, name: "title" });
+  const excerpt = useWatch({ control: form.control, name: "excerpt" });
+  const body = useWatch({ control: form.control, name: "body" });
 
   function openCreate() {
     setEditing(null);
@@ -75,7 +114,6 @@ export function AnnouncementsAdminClient({ announcements: initial }: Props) {
       title: "",
       body: "",
       excerpt: "",
-      audience: "public",
       isImportant: false,
       status: "draft",
     });
@@ -88,7 +126,6 @@ export function AnnouncementsAdminClient({ announcements: initial }: Props) {
       title: ann.title,
       body: ann.body,
       excerpt: ann.excerpt ?? "",
-      audience: ann.audience as FormValues["audience"],
       isImportant: ann.isImportant,
       status: (ann.status === "archived" ? "draft" : ann.status) as "draft" | "published",
     });
@@ -102,13 +139,6 @@ export function AnnouncementsAdminClient({ announcements: initial }: Props) {
         toast.error(result.error);
         return;
       }
-      setItems((prev) =>
-        prev.map((a) =>
-          a.id === editing.id
-            ? { ...a, ...values, updatedAt: new Date() }
-            : a
-        )
-      );
       toast.success("Announcement updated.");
     } else {
       const result = await createAnnouncement(values);
@@ -117,22 +147,45 @@ export function AnnouncementsAdminClient({ announcements: initial }: Props) {
         return;
       }
       toast.success("Announcement created.");
-      // Refetch by reload (simpler than managing optimistic insert with unknown id)
-      window.location.reload();
     }
     setDialogOpen(false);
+    router.refresh();
   }
 
-  async function archive(id: string) {
-    const result = await updateAnnouncement(id, { status: "archived" });
+  async function archive(announcement: Announcement) {
+    setActionId(announcement.id);
+    const result = await updateAnnouncement(announcement.id, { status: "archived" });
+    setActionId(null);
     if (!result.success) {
       toast.error(result.error);
       return;
     }
-    setItems((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, status: "archived" as const } : a))
-    );
     toast.success("Archived.");
+    router.refresh();
+  }
+
+  async function remove(announcement: Announcement) {
+    setActionId(announcement.id);
+    const result = await deleteAnnouncement(announcement.id);
+    setActionId(null);
+    if (!result.success) {
+      toast.error(result.error);
+      return;
+    }
+    toast.success("Announcement deleted.");
+    router.refresh();
+  }
+
+  async function confirmPendingAction() {
+    if (!pendingAction) return;
+
+    const current = pendingAction;
+    if (current.type === "archive") {
+      await archive(current.announcement);
+    } else {
+      await remove(current.announcement);
+    }
+    setPendingAction(null);
   }
 
   return (
@@ -140,7 +193,7 @@ export function AnnouncementsAdminClient({ announcements: initial }: Props) {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-serif text-h3 font-bold text-foreground">Announcements</h1>
-          <p className="text-muted-foreground text-sm mt-1">{items.length} total</p>
+          <p className="text-muted-foreground text-sm mt-1">{initial.length} total</p>
         </div>
         <Button size="sm" className="gap-1.5 font-medium" onClick={openCreate}>
           <Plus className="h-4 w-4" />
@@ -150,14 +203,14 @@ export function AnnouncementsAdminClient({ announcements: initial }: Props) {
 
       <Card>
         <CardContent className="p-0">
-          {items.length === 0 ? (
+          {initial.length === 0 ? (
             <div className="flex flex-col items-center py-12 gap-3">
               <Bell className="h-10 w-10 text-muted-foreground/40" />
               <p className="text-sm text-muted-foreground">No announcements yet.</p>
             </div>
           ) : (
             <div className="divide-y divide-border">
-              {items.map((ann) => (
+              {initial.map((ann) => (
                 <div key={ann.id} className="flex items-center justify-between px-6 py-4 gap-4">
                   <div className="min-w-0 flex-1 space-y-0.5">
                     <div className="flex items-center gap-2">
@@ -168,8 +221,8 @@ export function AnnouncementsAdminClient({ announcements: initial }: Props) {
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground capitalize">
-                      Audience: {ann.audience} ·{" "}
+                    <p className="text-xs text-muted-foreground">
+                      Public announcement ·{" "}
                       {ann.publishedAt ? formatDate(ann.publishedAt.toISOString()) : "Not published"}
                     </p>
                   </div>
@@ -185,6 +238,7 @@ export function AnnouncementsAdminClient({ announcements: initial }: Props) {
                       size="icon"
                       className="h-7 w-7"
                       onClick={() => openEdit(ann)}
+                      disabled={actionId === ann.id}
                     >
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>
@@ -193,11 +247,26 @@ export function AnnouncementsAdminClient({ announcements: initial }: Props) {
                         variant="ghost"
                         size="sm"
                         className="text-xs text-muted-foreground"
-                        onClick={() => archive(ann.id)}
+                        onClick={() => setPendingAction({ announcement: ann, type: "archive" })}
+                        disabled={actionId === ann.id}
                       >
-                        Archive
+                        {actionId === ann.id && pendingAction?.type === "archive" ? "Archiving..." : "Archive"}
                       </Button>
                     )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-destructive hover:text-destructive"
+                      onClick={() => setPendingAction({ announcement: ann, type: "delete" })}
+                      disabled={actionId === ann.id}
+                      title="Delete announcement"
+                    >
+                      {actionId === ann.id && pendingAction?.type === "delete" ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-3.5 w-3.5" />
+                      )}
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -207,11 +276,14 @@ export function AnnouncementsAdminClient({ announcements: initial }: Props) {
       </Card>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-serif">
               {editing ? "Edit Announcement" : "New Announcement"}
             </DialogTitle>
+            <p className="text-sm text-muted-foreground">
+              Only one public announcement can be live at a time. Keep notices short, longer content should go under News.
+            </p>
           </DialogHeader>
 
           <Form {...form}>
@@ -225,6 +297,9 @@ export function AnnouncementsAdminClient({ announcements: initial }: Props) {
                     <FormControl>
                       <Input placeholder="Announcement title" {...field} />
                     </FormControl>
+                    <FormDescription>
+                      {countWords(title)} / {ANNOUNCEMENT_TITLE_WORD_LIMIT} words
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -237,8 +312,15 @@ export function AnnouncementsAdminClient({ announcements: initial }: Props) {
                   <FormItem>
                     <FormLabel>Excerpt (optional)</FormLabel>
                     <FormControl>
-                      <Input placeholder="Short summary" {...field} />
+                      <Textarea
+                        placeholder="Short summary for the public banner"
+                        rows={3}
+                        {...field}
+                      />
                     </FormControl>
+                    <FormDescription>
+                      {countWords(excerpt)} / {ANNOUNCEMENT_EXCERPT_WORD_LIMIT} words
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -251,39 +333,22 @@ export function AnnouncementsAdminClient({ announcements: initial }: Props) {
                   <FormItem>
                     <FormLabel>Body</FormLabel>
                     <FormControl>
-                      <Textarea placeholder="Announcement content…" rows={5} {...field} />
+                      <Textarea
+                        placeholder="Announcement content…"
+                        rows={12}
+                        className="min-h-64 resize-y"
+                        {...field}
+                      />
                     </FormControl>
+                    <FormDescription>
+                      {countWords(body)} / {ANNOUNCEMENT_BODY_WORD_LIMIT} words. If this needs more room, publish it as News instead.
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="audience"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Audience</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="public">Public</SelectItem>
-                          <SelectItem value="students">Students</SelectItem>
-                          <SelectItem value="parents">Parents</SelectItem>
-                          <SelectItem value="applicants">Applicants</SelectItem>
-                          <SelectItem value="admins">Admins</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <FormField
                   control={form.control}
                   name="status"
@@ -301,6 +366,9 @@ export function AnnouncementsAdminClient({ announcements: initial }: Props) {
                           <SelectItem value="published">Published</SelectItem>
                         </SelectContent>
                       </Select>
+                      <p className="text-xs text-muted-foreground">
+                        Publishing this announcement replaces the one currently live.
+                      </p>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -332,6 +400,39 @@ export function AnnouncementsAdminClient({ announcements: initial }: Props) {
           </Form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!pendingAction} onOpenChange={(open) => !open && setPendingAction(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {pendingAction?.type === "archive" ? "Archive announcement?" : "Delete announcement?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingAction?.type === "archive"
+                ? `Archive "${pendingAction.announcement.title}"? It will be removed from the public site until published again.`
+                : `Delete "${pendingAction?.announcement.title}"? This cannot be undone.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={actionId === pendingAction?.announcement.id}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmPendingAction}
+              disabled={actionId === pendingAction?.announcement.id}
+              className={pendingAction?.type === "delete" ? "bg-destructive hover:bg-destructive/90" : undefined}
+            >
+              {actionId === pendingAction?.announcement.id ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Working...</>
+              ) : pendingAction?.type === "archive" ? (
+                "Archive"
+              ) : (
+                "Delete"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

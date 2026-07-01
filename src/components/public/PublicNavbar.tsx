@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Menu, Moon, Sun, X, LayoutDashboard, LogOut, User } from 'lucide-react';
+import { Menu, Moon, Sun, X, LayoutDashboard, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { BrandLogo } from '../shared/brand-logo';
@@ -33,7 +33,9 @@ export function PublicNavbar({ profile }: Props) {
   const { theme, setTheme } = useTheme();
   const menuRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { startTransition(() => setMounted(true)); }, []);
+  useEffect(() => {
+    startTransition(() => setMounted(true));
+  }, []);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -62,7 +64,7 @@ export function PublicNavbar({ profile }: Props) {
   }, [userMenuOpen]);
 
   const atHero = !scrolled;
-  const dashboardHref = profile?.role === 'admin' ? '/admin' : '/dashboard';
+  const dashboardHref = '/admin';
 
   return (
     <header
@@ -81,16 +83,20 @@ export function PublicNavbar({ profile }: Props) {
               <BrandLogo />
             </div>
             <div className="hidden sm:block">
-              <p className={cn(
-                'font-serif font-semibold text-sm leading-tight transition-colors duration-500',
-                atHero ? 'text-white' : 'text-foreground',
-              )}>
+              <p
+                className={cn(
+                  'font-serif font-semibold text-sm leading-tight transition-colors duration-500',
+                  atHero ? 'text-white' : 'text-foreground',
+                )}
+              >
                 Sankt Georg
               </p>
-              <p className={cn(
-                'text-[10px] leading-tight tracking-wide uppercase transition-colors duration-500',
-                atHero ? 'text-white/70' : 'text-muted-foreground',
-              )}>
+              <p
+                className={cn(
+                  'text-[10px] leading-tight tracking-wide uppercase transition-colors duration-500',
+                  atHero ? 'text-white/70' : 'text-muted-foreground',
+                )}
+              >
                 International School
               </p>
             </div>
@@ -105,7 +111,9 @@ export function PublicNavbar({ profile }: Props) {
                   className={cn(
                     'relative px-3 py-1.5 text-sm font-medium rounded-lg transition-colors duration-300',
                     pathname === item.href
-                      ? atHero ? 'text-white' : 'text-primary'
+                      ? atHero
+                        ? 'text-white'
+                        : 'text-primary'
                       : atHero
                         ? 'text-white/80 hover:text-white hover:bg-white/15'
                         : 'text-muted-foreground hover:text-foreground hover:bg-accent',
@@ -140,7 +148,11 @@ export function PublicNavbar({ profile }: Props) {
                 onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
                 aria-label="Toggle theme"
               >
-                {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                {theme === 'dark' ? (
+                  <Sun className="h-4 w-4" />
+                ) : (
+                  <Moon className="h-4 w-4" />
+                )}
               </Button>
             )}
 
@@ -157,18 +169,27 @@ export function PublicNavbar({ profile }: Props) {
                   )}
                 >
                   <Avatar size="sm" className="ring-2 ring-white/30">
-                    <AvatarImage src={profile.avatarUrl ?? ''} alt={profile.firstName ?? 'User'} />
-                    <AvatarFallback className={cn(
-                      'text-xs font-semibold',
-                      atHero ? 'bg-white/20 text-white' : 'bg-primary/10 text-primary',
-                    )}>
+                    <AvatarImage
+                      src={profile.avatarUrl ?? ''}
+                      alt={profile.firstName ?? 'User'}
+                    />
+                    <AvatarFallback
+                      className={cn(
+                        'text-xs font-semibold',
+                        atHero
+                          ? 'bg-white/20 text-white'
+                          : 'bg-primary/10 text-primary',
+                      )}
+                    >
                       {getInitials(profile)}
                     </AvatarFallback>
                   </Avatar>
-                  <span className={cn(
-                    'hidden lg:block text-sm font-medium transition-colors duration-300',
-                    atHero ? 'text-white/90' : 'text-foreground',
-                  )}>
+                  <span
+                    className={cn(
+                      'hidden lg:block text-sm font-medium transition-colors duration-300',
+                      atHero ? 'text-white/90' : 'text-foreground',
+                    )}
+                  >
                     {profile.firstName ?? profile.email.split('@')[0]}
                   </span>
                 </button>
@@ -185,9 +206,13 @@ export function PublicNavbar({ profile }: Props) {
                       {/* User info header */}
                       <div className="px-3.5 py-3 border-b border-border">
                         <p className="text-sm font-semibold text-foreground truncate">
-                          {[profile.firstName, profile.lastName].filter(Boolean).join(' ') || 'User'}
+                          {[profile.firstName, profile.lastName]
+                            .filter(Boolean)
+                            .join(' ') || 'User'}
                         </p>
-                        <p className="text-xs text-muted-foreground truncate">{profile.email}</p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {profile.email}
+                        </p>
                       </div>
 
                       {/* Menu items */}
@@ -198,13 +223,6 @@ export function PublicNavbar({ profile }: Props) {
                         >
                           <LayoutDashboard className="h-4 w-4 text-muted-foreground" />
                           Dashboard
-                        </Link>
-                        <Link
-                          href="/dashboard/profile"
-                          className="flex items-center gap-2.5 px-3.5 py-2 text-sm text-foreground hover:bg-accent transition-colors"
-                        >
-                          <User className="h-4 w-4 text-muted-foreground" />
-                          Profile
                         </Link>
                       </div>
 
@@ -224,7 +242,7 @@ export function PublicNavbar({ profile }: Props) {
                 </AnimatePresence>
               </div>
             ) : (
-              /* Sign In + Sign Up */
+              /* Admin sign in */
               <div className="hidden sm:flex items-center gap-1.5">
                 <Button
                   asChild
@@ -238,19 +256,6 @@ export function PublicNavbar({ profile }: Props) {
                   )}
                 >
                   <Link href="/login">Sign In</Link>
-                </Button>
-                <Button
-                  asChild
-                  size="sm"
-                  variant={atHero ? 'outline' : 'default'}
-                  className={cn(
-                    'font-medium transition-all duration-300',
-                    atHero
-                      ? 'border-white/60 text-white bg-white/10 hover:bg-white/20 hover:border-white shadow-none backdrop-blur-sm'
-                      : 'shadow-brand-sm',
-                  )}
-                >
-                  <Link href="/register">Sign Up</Link>
                 </Button>
               </div>
             )}
@@ -266,7 +271,11 @@ export function PublicNavbar({ profile }: Props) {
               onClick={() => setMobileOpen((o) => !o)}
               aria-label="Toggle menu"
             >
-              {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              {mobileOpen ? (
+                <X className="h-5 w-5" />
+              ) : (
+                <Menu className="h-5 w-5" />
+              )}
             </Button>
           </div>
         </div>
@@ -313,12 +322,21 @@ export function PublicNavbar({ profile }: Props) {
                       </Avatar>
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-foreground truncate">
-                          {[profile.firstName, profile.lastName].filter(Boolean).join(' ') || 'User'}
+                          {[profile.firstName, profile.lastName]
+                            .filter(Boolean)
+                            .join(' ') || 'User'}
                         </p>
-                        <p className="text-xs text-muted-foreground truncate">{profile.email}</p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {profile.email}
+                        </p>
                       </div>
                     </div>
-                    <Button asChild variant="outline" className="w-full justify-start gap-2" size="sm">
+                    <Button
+                      asChild
+                      variant="outline"
+                      className="w-full justify-start gap-2"
+                      size="sm"
+                    >
                       <Link href={dashboardHref}>
                         <LayoutDashboard className="h-4 w-4" /> Dashboard
                       </Link>
@@ -336,11 +354,13 @@ export function PublicNavbar({ profile }: Props) {
                   </>
                 ) : (
                   <>
-                    <Button asChild variant="outline" className="w-full font-medium" size="sm">
+                    <Button
+                      asChild
+                      variant="outline"
+                      className="w-full font-medium"
+                      size="sm"
+                    >
                       <Link href="/login">Sign In</Link>
-                    </Button>
-                    <Button asChild className="w-full font-medium" size="sm">
-                      <Link href="/register">Sign Up</Link>
                     </Button>
                   </>
                 )}

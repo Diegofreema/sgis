@@ -76,20 +76,23 @@ async function ExamCard({ profile }: { profile: UserProfile }) {
         : null;
 
       if (period) {
-        exam = await db
-          .select()
-          .from(exams)
-          .where(and(eq(exams.applicationPeriodId, period.id), eq(exams.status, "active")))
-          .limit(1)
-          .then((r) => r[0] ?? null);
-
-        if (exam) {
-          attempt = await db
+        const now = new Date();
+        if (now >= new Date(period.examStartDate) && now <= new Date(period.examEndDate)) {
+          exam = await db
             .select()
-            .from(examAttempts)
-            .where(and(eq(examAttempts.userId, profile.id), eq(examAttempts.examId, exam.id)))
+            .from(exams)
+            .where(and(eq(exams.applicationPeriodId, period.id), eq(exams.status, "active")))
             .limit(1)
             .then((r) => r[0] ?? null);
+
+          if (exam) {
+            attempt = await db
+              .select()
+              .from(examAttempts)
+              .where(and(eq(examAttempts.userId, profile.id), eq(examAttempts.examId, exam.id)))
+              .limit(1)
+              .then((r) => r[0] ?? null);
+          }
         }
       }
     }

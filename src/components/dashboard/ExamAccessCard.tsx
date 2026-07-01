@@ -19,6 +19,7 @@ export function ExamAccessCard({ exam, attempt, application }: Props) {
   const hasSubmitted =
     attempt?.status === "submitted" || attempt?.status === "graded";
   const inProgress = attempt?.status === "in_progress";
+  const hasPassed = attempt?.passed ?? false;
 
   return (
     <Card>
@@ -52,6 +53,9 @@ export function ExamAccessCard({ exam, attempt, application }: Props) {
               <p className="text-sm font-medium text-foreground">Exam Completed</p>
               <p className="text-xs text-muted-foreground mt-1">
                 Submitted {attempt?.submittedAt ? formatDate(attempt.submittedAt.toISOString()) : "—"}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Outcome: {hasPassed ? "Passed" : "Failed"}
               </p>
               <Button asChild size="sm" variant="outline" className="mt-2 gap-2 text-xs h-7">
                 <Link href="/dashboard/results">View Results</Link>

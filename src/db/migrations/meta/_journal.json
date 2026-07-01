@@ -36,6 +36,41 @@
       "when": 1781076668708,
       "tag": "0004_fast_justice",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1782182400000,
+      "tag": "0005_single_admin_public_applications",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1782691200000,
+      "tag": "0006_payment_status_rejected",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1782736635930,
+      "tag": "0007_sticky_legion",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1782814877917,
+      "tag": "0008_wonderful_ben_urich",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1782846031723,
+      "tag": "0009_thin_puff_adder",
+      "breakpoints": true
     }
   ]
 }

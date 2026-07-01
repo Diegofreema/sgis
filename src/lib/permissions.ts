@@ -60,13 +60,19 @@ export function canApplyForEntranceExam(
 export function canTakeExam(
   exam: Exam | null,
   attempt: ExamAttempt | null,
-  applicationStatus: string | null
+  applicationStatus: string | null,
+  period?: ApplicationPeriod | null
 ): boolean {
   if (!exam) return false;
   if (applicationStatus !== "approved") return false;
   if (exam.status !== "active") return false;
 
   const now = new Date();
+  if (period) {
+    const start = new Date(period.examStartDate);
+    const end = new Date(period.examEndDate);
+    if (now < start || now > end) return false;
+  }
 
   // If no attempt yet, they can start (assuming period is valid)
   if (!attempt) return true;
@@ -84,6 +90,10 @@ export function canTakeExam(
     return now < new Date(attempt.expiresAt);
   }
 
+  if (attempt.status === EXAM_ATTEMPT_STATUS.GRADED) {
+    return false;
+  }
+
   return false;
 }
 
@@ -96,9 +106,5 @@ export function canViewResult(
 ): boolean {
   if (!exam || !attempt) return false;
   if (attempt.status !== EXAM_ATTEMPT_STATUS.GRADED) return false;
-  if (exam.showResultImmediately) return true;
-  if (exam.resultReleaseDate) {
-    return new Date() >= new Date(exam.resultReleaseDate);
-  }
-  return false;
+  return !!exam.resultReleaseDate && new Date() >= new Date(exam.resultReleaseDate);
 }

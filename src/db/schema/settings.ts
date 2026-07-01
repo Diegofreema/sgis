@@ -8,6 +8,10 @@ export const admissionSettings = pgTable("admission_settings", {
   academicSession: text("academic_session").notNull().default(""),
   applicationDeadline: timestamp("application_deadline", { withTimezone: true }),
   notes: text("notes"),
+  schoolName: text("school_name").notNull().default("Sankt Georg International School"),
+  schoolEmail: text("school_email"),
+  schoolPhone: text("school_phone"),
+  maintenanceMode: boolean("maintenance_mode").notNull().default(false),
   updatedBy: uuid("updated_by").references(() => profiles.id),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

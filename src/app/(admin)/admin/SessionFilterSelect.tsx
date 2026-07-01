@@ -18,21 +18,27 @@ type Props = {
 
 export function SessionFilterSelect({ periods, currentPeriodId }: Props) {
   const router = useRouter();
+  const selectedPeriod = periods.find((period) => period.id === currentPeriodId);
+  const selectedLabel =
+    currentPeriodId === "all"
+      ? "All sessions"
+      : selectedPeriod?.title ?? "All sessions";
 
   function handleChange(value: string) {
     const url = new URL(window.location.href);
     if (value === "all") {
-      url.searchParams.delete("period");
+      url.searchParams.set("period", "all");
     } else {
       url.searchParams.set("period", value);
     }
+    url.searchParams.delete("page");
     router.push(url.pathname + url.search);
   }
 
   return (
     <Select value={currentPeriodId ?? "all"} onValueChange={handleChange}>
       <SelectTrigger className="w-60">
-        <SelectValue placeholder="All sessions" />
+        <SelectValue>{selectedLabel}</SelectValue>
       </SelectTrigger>
       <SelectContent>
         <SelectItem value="all">All sessions</SelectItem>
