@@ -10,6 +10,11 @@ import { generateReference } from "@/lib/utils";
 import { getActiveApplicationPeriod } from "@/server/queries/applications.queries";
 import { isValidAcademicSession } from "@/lib/application-periods";
 import {
+  APPLICATION_DOCUMENT_MAX_BYTES,
+  APPLICATION_DOCUMENT_MAX_SIZE_LABEL,
+  APPLICATION_SUPPORTING_DOCUMENTS,
+} from "@/lib/application-documents";
+import {
   sendApplicationReceivedEmail,
   sendApplicationStatusEmail,
 } from "@/lib/email";
@@ -60,7 +65,7 @@ const trackSchema = z.object({
 const MAX_RECEIPT_UPLOAD_BYTES = 100 * 1024;
 const RECEIPT_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf"]);
 
-type DetectedReceiptType =
+type DetectedUploadType =
   | { ext: "jpg"; mime: "image/jpeg" }
   | { ext: "png"; mime: "image/png" }
   | { ext: "webp"; mime: "image/webp" }
@@ -76,7 +81,7 @@ function fileValue(formData: FormData, key: string) {
   return value instanceof File && value.size > 0 ? value : null;
 }
 
-function detectReceiptType(bytes: Uint8Array): DetectedReceiptType | null {
+function detectUploadType(bytes: Uint8Array): DetectedUploadType | null {
   if (
     bytes.length >= 4 &&
     bytes[0] === 0x25 &&
@@ -129,14 +134,20 @@ function detectReceiptType(bytes: Uint8Array): DetectedReceiptType | null {
 
 function validateUpload(
   file: File | null,
-  detectedType: DetectedReceiptType | null,
+  detectedType: DetectedUploadType | null,
   label: string,
   maxBytes: number,
-  maxSizeLabel: string
+  maxSizeLabel: string,
+  options?: {
+    allowPdf?: boolean;
+  }
 ) {
   if (!file) return `${label} is required.`;
   if (!detectedType || !RECEIPT_TYPES.has(detectedType.mime)) {
     return `${label} must be a real JPG, PNG, WebP, or PDF file.`;
+  }
+  if (options?.allowPdf === false && detectedType.mime === "application/pdf") {
+    return `${label} must be a real JPG, PNG, or WebP image.`;
   }
   if (file.size > maxBytes) return `${label} must be ${maxSizeLabel} or smaller.`;
   return null;
@@ -188,9 +199,9 @@ function revalidateApplicationPeriodPaths() {
 
 async function uploadApplicationFile(input: {
   applicationCode: string;
-  kind: "receipt";
+  kind: string;
   bytes: Uint8Array;
-  detectedType: DetectedReceiptType;
+  detectedType: DetectedUploadType;
 }) {
   const bucket = process.env.NEXT_PUBLIC_STORAGE_BUCKET_DOCUMENTS ?? "documents";
   const path = `applications/${input.applicationCode}/${input.kind}.${input.detectedType.ext}`;
@@ -254,7 +265,7 @@ export async function createPublicApplication(
 
   const receipt = fileValue(formData, "receipt");
   const receiptBytes = receipt ? new Uint8Array(await receipt.arrayBuffer()) : null;
-  const detectedReceiptType = receiptBytes ? detectReceiptType(receiptBytes) : null;
+  const detectedReceiptType = receiptBytes ? detectUploadType(receiptBytes) : null;
   const receiptError = validateUpload(
     receipt,
     detectedReceiptType,
@@ -263,6 +274,35 @@ export async function createPublicApplication(
     "100KB"
   );
   if (receiptError) return { success: false, error: receiptError };
+
+  const supportingDocuments = await Promise.all(
+    APPLICATION_SUPPORTING_DOCUMENTS.map(async (document) => {
+      const file = fileValue(formData, document.key);
+      const bytes = file ? new Uint8Array(await file.arrayBuffer()) : null;
+      const detectedType = bytes ? detectUploadType(bytes) : null;
+      const error = validateUpload(
+        file,
+        detectedType,
+        document.label,
+        APPLICATION_DOCUMENT_MAX_BYTES,
+        APPLICATION_DOCUMENT_MAX_SIZE_LABEL,
+        { allowPdf: document.allowPdf }
+      );
+
+      return {
+        ...document,
+        file,
+        bytes,
+        detectedType,
+        error,
+      };
+    })
+  );
+
+  const supportingDocumentError = supportingDocuments.find((document) => document.error)?.error;
+  if (supportingDocumentError) {
+    return { success: false, error: supportingDocumentError };
+  }
 
   const applicationCode = await generateApplicationCode();
   let duplicate;
@@ -296,6 +336,7 @@ export async function createPublicApplication(
   }
 
   let receiptUpload;
+  let documentUploads;
   try {
     receiptUpload = await uploadApplicationFile({
       applicationCode,
@@ -303,8 +344,19 @@ export async function createPublicApplication(
       bytes: receiptBytes!,
       detectedType: detectedReceiptType!,
     });
+
+    documentUploads = await Promise.all(
+      supportingDocuments.map((document) =>
+        uploadApplicationFile({
+          applicationCode,
+          kind: document.kind,
+          bytes: document.bytes!,
+          detectedType: document.detectedType!,
+        })
+      )
+    );
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Receipt upload failed.";
+    const message = error instanceof Error ? error.message : "Document upload failed.";
     return { success: false, error: message };
   }
 
@@ -329,6 +381,7 @@ export async function createPublicApplication(
       guardianEmail: parsed.data.guardianEmail,
       receiptPath: receiptUpload.path,
       receiptUrl: receiptUpload.url,
+      documentUrls: documentUploads.map((document) => document.path),
       status: "pending",
       submittedAt: new Date(),
     });

@@ -5,31 +5,32 @@ import { desc, eq } from "drizzle-orm";
 import { getApplicationById } from "@/server/queries/applications.queries";
 import { env } from "@/config/env";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { APPLICATION_SUPPORTING_DOCUMENTS } from "@/lib/application-documents";
 import { ApplicantDetailClient } from "./ApplicantDetailClient";
 
 type Props = {
   params: Promise<{ id: string }>;
 };
 
-async function getReceiptUrl(receiptPath: string | null) {
-  if (!receiptPath) return null;
+async function getSignedDocumentUrl(path: string | null) {
+  if (!path) return null;
 
   try {
     const supabase = createAdminClient();
     const bucket = process.env.NEXT_PUBLIC_STORAGE_BUCKET_DOCUMENTS ?? "documents";
     const { data, error } = await supabase.storage
       .from(bucket)
-      .createSignedUrl(receiptPath, 3600);
+      .createSignedUrl(path, 3600);
 
     if (error) {
-      console.error("[storage] Failed to sign receipt URL:", error.message);
+      console.error("[storage] Failed to sign document URL:", error.message);
       return null;
     }
 
     return data.signedUrl;
   } catch (error) {
     if (env.NODE_ENV !== "production") {
-      console.error("[storage] Failed to create receipt URL:", error);
+      console.error("[storage] Failed to create document URL:", error);
     }
     return null;
   }
@@ -46,8 +47,14 @@ export default async function ApplicantDetailPage({ params }: Props) {
   if (!application) notFound();
 
   const receiptUrl = application.receiptPath
-    ? await getReceiptUrl(application.receiptPath)
+    ? await getSignedDocumentUrl(application.receiptPath)
     : application.receiptUrl;
+  const supportingDocumentUrls = await Promise.all(
+    APPLICATION_SUPPORTING_DOCUMENTS.map(async (document, index) => ({
+      label: document.label,
+      url: await getSignedDocumentUrl(application.documentUrls?.[index] ?? null),
+    }))
+  );
 
   const attempt = await db
     .select({ attempt: examAttempts, exam: exams })
@@ -64,6 +71,7 @@ export default async function ApplicantDetailPage({ params }: Props) {
         ...application,
         receiptUrl,
       }}
+      supportingDocuments={supportingDocumentUrls}
       examAttempt={attempt}
     />
   );

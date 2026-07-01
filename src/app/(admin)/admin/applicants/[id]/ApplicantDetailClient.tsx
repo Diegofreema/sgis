@@ -34,6 +34,10 @@ const STATUS_COLORS: Record<string, string> = {
 
 type Props = {
   application: Application;
+  supportingDocuments: Array<{
+    label: string;
+    url: string | null;
+  }>;
   examAttempt: {
     attempt: {
       score: string | null;
@@ -49,7 +53,7 @@ type Props = {
   } | null;
 };
 
-export function ApplicantDetailClient({ application, examAttempt }: Props) {
+export function ApplicantDetailClient({ application, supportingDocuments, examAttempt }: Props) {
   const router = useRouter();
   const [notes, setNotes] = useState('');
   const [rejectionReason, setRejectionReason] = useState(
@@ -173,7 +177,7 @@ export function ApplicantDetailClient({ application, examAttempt }: Props) {
           <Card>
             <CardHeader>
               <CardTitle className="font-serif text-base">
-                Guardian and Receipt
+                Guardian and Documents
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-5">
@@ -191,17 +195,37 @@ export function ApplicantDetailClient({ application, examAttempt }: Props) {
                   value={application.guardianEmail ?? 'Not provided'}
                 />
               </dl>
-              {application.receiptUrl && (
-                <Button asChild variant="outline" size="sm">
-                  <a
-                    href={application.receiptUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    View payment receipt
-                  </a>
-                </Button>
-              )}
+              <div className="space-y-3">
+                {application.receiptUrl && (
+                  <Button asChild variant="outline" size="sm">
+                    <a
+                      href={application.receiptUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      View payment receipt
+                    </a>
+                  </Button>
+                )}
+
+                {supportingDocuments.some((document) => document.url) && (
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {supportingDocuments
+                      .filter((document) => document.url)
+                      .map((document) => (
+                        <Button key={document.label} asChild variant="outline" size="sm">
+                          <a
+                            href={document.url!}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            {document.label}
+                          </a>
+                        </Button>
+                      ))}
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
 

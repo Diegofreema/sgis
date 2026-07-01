@@ -19,6 +19,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { siteConfig } from "@/config/site";
+import {
+  APPLICATION_DOCUMENT_MAX_SIZE_LABEL,
+  APPLICATION_SUPPORTING_DOCUMENTS,
+} from "@/lib/application-documents";
 import { createPublicApplication } from "@/server/actions/application.actions";
 import {
   requestPublicExamAccess,
@@ -146,6 +150,33 @@ export function PublicApplicationForm() {
           <Label htmlFor="receipt">Payment receipt</Label>
           <Input id="receipt" name="receipt" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" required />
           <p className="text-xs text-muted-foreground">Image or PDF receipt. Maximum 100KB.</p>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <div className="space-y-1">
+          <p className="text-sm font-medium text-foreground">Required documents</p>
+          <p className="text-xs text-muted-foreground">
+            Upload each file as JPG, PNG, WebP, or PDF. Maximum {APPLICATION_DOCUMENT_MAX_SIZE_LABEL} each.
+          </p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {APPLICATION_SUPPORTING_DOCUMENTS.map((document) => (
+            <div key={document.key} className="space-y-2">
+              <Label htmlFor={document.key}>{document.label}</Label>
+              <Input
+                id={document.key}
+                name={document.key}
+                type="file"
+                accept={document.accept}
+                required
+              />
+              <p className="text-xs text-muted-foreground">
+                {document.allowPdf ? "JPG, PNG, WebP, or PDF." : "JPG, PNG, or WebP image."} Maximum{" "}
+                {APPLICATION_DOCUMENT_MAX_SIZE_LABEL}.
+              </p>
+            </div>
+          ))}
         </div>
       </div>
 

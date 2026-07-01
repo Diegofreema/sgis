@@ -42,6 +42,7 @@ export type Application = {
   receiptPath: string | null;
   paymentReference: string | null;
   paymentNote: string | null;
+  documentUrls: string[];
   status: ApplicationStatus;
   submittedAt: string | null;
   reviewedAt: string | null;

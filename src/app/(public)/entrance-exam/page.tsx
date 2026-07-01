@@ -97,7 +97,7 @@ export default async function EntranceExamPage({ searchParams }: Props) {
               Entrance Examination Application
             </h1>
             <p className="text-lg leading-relaxed text-muted-foreground">
-              Apply for the common entrance examination, upload your payment receipt, then use your application ID to track your application and exam access.
+              Apply for the common entrance examination, upload your receipt and required documents, then use your application ID to track your application and exam access.
             </p>
           </div>
         </div>
