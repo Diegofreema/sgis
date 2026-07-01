@@ -17,7 +17,10 @@ import type {
   PublicExamAccessSession,
   Question,
 } from "@/db";
-import { getPublicExamAccessCookieValue } from "@/lib/public-exam-access";
+import {
+  getPublicExamAccessCookieValue,
+  getPublicExamWindow,
+} from "@/lib/public-exam-access";
 
 export type PublicExamAccessState =
   | "not_found"
@@ -40,14 +43,18 @@ export type PublicExamAccess = {
 export type PublicExamDiscoveryState =
   | "not_found"
   | "no_exam_for_session"
-  | "exam_not_started"
-  | "exam_closed"
-  | "ready";
+  | "preview_locked"
+  | "preview_open"
+  | "verification_open"
+  | "live"
+  | "exam_closed";
 
 export type PublicExamDiscovery = {
   state: PublicExamDiscoveryState;
   period: ApplicationPeriod | null;
   exam: typeof exams.$inferSelect | null;
+  previewOpensAt: Date | null;
+  verificationOpensAt: Date | null;
 };
 
 export type VerifiedPublicExamAccessState = "missing" | "invalid" | "expired" | "ready";
@@ -251,7 +258,13 @@ export async function getActiveExamForPeriod(periodId: string) {
 
 export async function getPublicExamDiscovery(periodId: string): Promise<PublicExamDiscovery> {
   if (!db) {
-    return { state: "not_found", period: null, exam: null };
+    return {
+      state: "not_found",
+      period: null,
+      exam: null,
+      previewOpensAt: null,
+      verificationOpensAt: null,
+    };
   }
 
   const period = await db
@@ -262,23 +275,71 @@ export async function getPublicExamDiscovery(periodId: string): Promise<PublicEx
     .then((rows) => rows[0] ?? null);
 
   if (!period) {
-    return { state: "not_found", period: null, exam: null };
+    return {
+      state: "not_found",
+      period: null,
+      exam: null,
+      previewOpensAt: null,
+      verificationOpensAt: null,
+    };
   }
 
   const exam = await getActiveExamForPeriod(period.id);
   if (!exam) {
-    return { state: "no_exam_for_session", period, exam: null };
+    return {
+      state: "no_exam_for_session",
+      period,
+      exam: null,
+      previewOpensAt: null,
+      verificationOpensAt: null,
+    };
   }
 
-  const now = new Date();
-  if (now < new Date(period.examStartDate)) {
-    return { state: "exam_not_started", period, exam };
+  const window = getPublicExamWindow(period);
+  if (window.phase === "too_early") {
+    return {
+      state: "preview_locked",
+      period,
+      exam,
+      previewOpensAt: window.previewOpensAt,
+      verificationOpensAt: window.verificationOpensAt,
+    };
   }
-  if (now > new Date(period.examEndDate)) {
-    return { state: "exam_closed", period, exam };
+  if (window.phase === "preview") {
+    return {
+      state: "preview_open",
+      period,
+      exam,
+      previewOpensAt: window.previewOpensAt,
+      verificationOpensAt: window.verificationOpensAt,
+    };
+  }
+  if (window.phase === "verification") {
+    return {
+      state: "verification_open",
+      period,
+      exam,
+      previewOpensAt: window.previewOpensAt,
+      verificationOpensAt: window.verificationOpensAt,
+    };
+  }
+  if (window.phase === "live") {
+    return {
+      state: "live",
+      period,
+      exam,
+      previewOpensAt: window.previewOpensAt,
+      verificationOpensAt: window.verificationOpensAt,
+    };
   }
 
-  return { state: "ready", period, exam };
+  return {
+    state: "exam_closed",
+    period,
+    exam,
+    previewOpensAt: window.previewOpensAt,
+    verificationOpensAt: window.verificationOpensAt,
+  };
 }
 
 export async function getVerifiedPublicExamAccess(): Promise<VerifiedPublicExamAccess> {

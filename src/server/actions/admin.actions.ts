@@ -164,6 +164,7 @@ function revalidateExamPaths(examId?: string) {
   revalidatePath("/dashboard/exam");
   revalidatePath("/dashboard/results");
   revalidatePath("/entrance-exam");
+  revalidatePath("/entrance-exam/exam");
   if (examId) revalidatePath(`/admin/exams/${examId}`);
 }
 
@@ -284,6 +285,43 @@ export async function updateExam(
     .where(eq(exams.id, examId));
 
   revalidateExamPaths(examId);
+  return { success: true, data: undefined };
+}
+
+export async function updateExamWindow(input: {
+  periodId: string;
+  examStartDate: string;
+  examEndDate: string;
+}): Promise<ActionResult> {
+  await requireRole(["admin"]);
+  if (!db) return { success: false, error: "Service unavailable" };
+
+  const period = await getApplicationPeriodForExam(input.periodId);
+  if (!period) return { success: false, error: "Exam session not found." };
+
+  const examStartDate = new Date(input.examStartDate);
+  const examEndDate = new Date(input.examEndDate);
+  if (
+    Number.isNaN(examStartDate.getTime()) ||
+    Number.isNaN(examEndDate.getTime())
+  ) {
+    return { success: false, error: "Enter valid exam date and time values." };
+  }
+  if (examStartDate >= examEndDate) {
+    return { success: false, error: "Exam end time must be after the start time." };
+  }
+
+  await db
+    .update(applicationPeriods)
+    .set({
+      examStartDate,
+      examEndDate,
+      updatedAt: new Date(),
+    })
+    .where(eq(applicationPeriods.id, input.periodId));
+
+  revalidateExamPaths();
+  revalidatePath("/admin/settings");
   return { success: true, data: undefined };
 }
 

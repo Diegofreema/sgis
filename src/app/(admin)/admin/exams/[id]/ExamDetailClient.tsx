@@ -1,8 +1,9 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { format } from 'date-fns';
 import { toast } from 'sonner';
 import {
   ArrowLeft,
@@ -52,6 +53,7 @@ import {
   randomlyAssignQuestionsToExam,
   removeQuestionFromExam,
   updateExam,
+  updateExamWindow,
   updateExamStatus,
 } from '@/server/actions/admin.actions';
 import {
@@ -89,6 +91,10 @@ function questionPreview(question: Question) {
     : question.questionText;
 }
 
+function formatDateTimeInput(date: string | Date) {
+  return format(new Date(date), "yyyy-MM-dd'T'HH:mm");
+}
+
 export function ExamDetailClient({
   exam,
   questions: assignedQuestions,
@@ -108,6 +114,18 @@ export function ExamDetailClient({
   const [applicationPeriodId, setApplicationPeriodId] = useState(
     exam?.applicationPeriodId ?? '',
   );
+  const [examStartDate, setExamStartDate] = useState(() => {
+    const session = sessions.find(
+      (item) => item.id === exam?.applicationPeriodId,
+    );
+    return session ? formatDateTimeInput(session.examStartDate) : '';
+  });
+  const [examEndDate, setExamEndDate] = useState(() => {
+    const session = sessions.find(
+      (item) => item.id === exam?.applicationPeriodId,
+    );
+    return session ? formatDateTimeInput(session.examEndDate) : '';
+  });
   const [saving, setSaving] = useState(false);
   const [sendingResults, setSendingResults] = useState(false);
   const [releasingResults, setReleasingResults] = useState(false);
@@ -162,6 +180,23 @@ export function ExamDetailClient({
     ),
   ].sort();
 
+  useEffect(() => {
+    const setStateToDefault = () => {
+      setExamStartDate('');
+      setExamEndDate('');
+    };
+    if (!selectedSession) {
+      setStateToDefault();
+      return;
+    }
+    const setExamDate = () => {
+      setExamStartDate(formatDateTimeInput(selectedSession.examStartDate));
+      setExamEndDate(formatDateTimeInput(selectedSession.examEndDate));
+    };
+
+    setExamDate();
+  }, [selectedSession?.id, selectedSession]);
+
   async function handleSave() {
     if (!title.trim()) {
       toast.error('Exam title is required.');
@@ -173,6 +208,29 @@ export function ExamDetailClient({
     }
 
     setSaving(true);
+
+    if (!isNew && selectedSession) {
+      const scheduleChanged =
+        examStartDate !== formatDateTimeInput(selectedSession.examStartDate) ||
+        examEndDate !== formatDateTimeInput(selectedSession.examEndDate);
+
+      if (scheduleChanged) {
+        const scheduleResult = await updateExamWindow({
+          periodId: selectedSession.id,
+          examStartDate,
+          examEndDate,
+        });
+
+        if (!scheduleResult.success) {
+          setSaving(false);
+          toast.error(
+            scheduleResult.error ?? 'Failed to update exam schedule.',
+          );
+          return;
+        }
+      }
+    }
+
     const payload = {
       title: title.trim(),
       description,
@@ -345,6 +403,7 @@ export function ExamDetailClient({
               variant="outline"
               onClick={() => setPendingAction('active')}
               disabled={statusUpdating}
+              className="cursor-pointer"
             >
               Activate Exam
             </Button>
@@ -355,7 +414,7 @@ export function ExamDetailClient({
                 variant="outline"
                 onClick={() => setPendingAction('release-results')}
                 disabled={releasingResults}
-                className="gap-2"
+                className="gap-2 cursor-pointer"
               >
                 {releasingResults ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -368,7 +427,7 @@ export function ExamDetailClient({
                 variant="outline"
                 onClick={() => setPendingAction('email-results')}
                 disabled={sendingResults}
-                className="gap-2"
+                className="gap-2 cursor-pointer"
               >
                 {sendingResults ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -381,7 +440,7 @@ export function ExamDetailClient({
                 variant="outline"
                 onClick={() => setPendingAction('closed')}
                 disabled={statusUpdating}
-                className="gap-2"
+                className="gap-2 cursor-pointer"
               >
                 <Archive className="h-4 w-4" />
                 Close
@@ -393,7 +452,7 @@ export function ExamDetailClient({
               variant="outline"
               onClick={() => setPendingAction('archived')}
               disabled={statusUpdating}
-              className="gap-2"
+              className="gap-2 cursor-pointer"
             >
               <Archive className="h-4 w-4" />
               Archive
@@ -402,7 +461,7 @@ export function ExamDetailClient({
           <Button
             onClick={handleSave}
             disabled={saving}
-            className="gap-2 font-medium shadow-brand-sm"
+            className="gap-2 font-medium shadow-brand-sm cursor-pointer"
           >
             {saving ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -483,6 +542,31 @@ export function ExamDetailClient({
                   }
                 />
               </div>
+              {!isNew && selectedSession && (
+                <>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="exam-start-date">Exam starts</Label>
+                    <Input
+                      id="exam-start-date"
+                      type="datetime-local"
+                      value={examStartDate}
+                      onChange={(event) => setExamStartDate(event.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="exam-end-date">Exam ends</Label>
+                    <Input
+                      id="exam-end-date"
+                      type="datetime-local"
+                      value={examEndDate}
+                      onChange={(event) => setExamEndDate(event.target.value)}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground md:col-span-2">
+                    This updates the exam window for the selected session.
+                  </p>
+                </>
+              )}
               <div className="space-y-1.5 md:col-span-2">
                 <Label htmlFor="exam-description">Admin description</Label>
                 <Textarea
@@ -791,10 +875,16 @@ export function ExamDetailClient({
                       {selectedSession.title}
                     </p>
                     <p className="text-muted-foreground">
-                      Exam opens {formatDate(selectedSession.examStartDate)}
+                      Exam opens{' '}
+                      {examStartDate
+                        ? formatDate(examStartDate)
+                        : formatDate(selectedSession.examStartDate)}
                     </p>
                     <p className="text-muted-foreground">
-                      Exam closes {formatDate(selectedSession.examEndDate)}
+                      Exam closes{' '}
+                      {examEndDate
+                        ? formatDate(examEndDate)
+                        : formatDate(selectedSession.examEndDate)}
                     </p>
                   </div>
                 </>

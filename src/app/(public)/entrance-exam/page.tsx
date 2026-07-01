@@ -1,15 +1,18 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import Link from "next/link";
 import Image from "next/image";
 import { connection } from "next/server";
 import {
   AlertCircle,
+  ArrowRight,
   CheckCircle2,
   Clock,
   Landmark,
   Search,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   getActiveApplicationPeriod,
@@ -30,7 +33,6 @@ import {
   PrintButton,
   PublicApplicationForm,
   PublicExamSessionPicker,
-  PublicExamVerificationCard,
 } from "./ApplicationClient";
 
 export const metadata: Metadata = {
@@ -274,11 +276,7 @@ export default async function EntranceExamPage({ searchParams }: Props) {
               )}
 
               {!sessionParamInvalid && selectedDiscovery && (
-                <PublicExamDiscoverySection
-                  discovery={selectedDiscovery}
-                  applicationId={params.applicationId}
-                  examError={params.examError}
-                />
+                <PublicExamDiscoverySection discovery={selectedDiscovery} />
               )}
             </CardContent>
           </Card>
@@ -441,12 +439,8 @@ function StatusBadge({ status }: { status: string }) {
 
 function PublicExamDiscoverySection({
   discovery,
-  applicationId,
-  examError,
 }: {
   discovery: PublicExamDiscovery;
-  applicationId?: string;
-  examError?: string;
 }) {
   if (discovery.state === "not_found" || !discovery.period) {
     return (
@@ -471,6 +465,18 @@ function PublicExamDiscoverySection({
 
   if (!discovery.exam) return null;
 
+  const previewHref = `/entrance-exam/exam?session=${encodeURIComponent(discovery.period.id)}`;
+  const statusLabel =
+    discovery.state === "live"
+      ? "Exam live"
+      : discovery.state === "verification_open"
+        ? "Verification open"
+        : discovery.state === "preview_open"
+          ? "Preview open"
+          : discovery.state === "preview_locked"
+            ? "Preview locked"
+            : "Closed";
+
   return (
     <div className="grid gap-5 lg:grid-cols-[1.15fr_.85fr]">
       <div className="rounded-2xl border bg-muted/20 p-5">
@@ -485,7 +491,8 @@ function PublicExamDiscoverySection({
           <Info label="Session" value={discovery.period.title} />
           <Info label="Exam starts" value={formatDate(discovery.period.examStartDate, "MMMM d, yyyy")} />
           <Info label="Exam closes" value={formatDate(discovery.period.examEndDate, "MMMM d, yyyy")} />
-          <Info label="Status" value={discovery.state === "ready" ? "Open now" : discovery.state === "exam_not_started" ? "Not started" : "Closed"} />
+          <Info label="Preview opens" value={formatDate(discovery.previewOpensAt ?? discovery.period.examStartDate, "MMMM d, yyyy 'at' h:mm a")} />
+          <Info label="Status" value={statusLabel} />
         </dl>
 
         {discovery.exam.instructions && (
@@ -495,21 +502,38 @@ function PublicExamDiscoverySection({
         )}
       </div>
 
-      {discovery.state === "ready" ? (
-        <PublicExamVerificationCard
-          periodId={discovery.period.id}
-          defaultApplicationCode={applicationId}
-          examError={examError}
+      {discovery.state === "preview_open" ||
+      discovery.state === "verification_open" ||
+      discovery.state === "live" ? (
+        <div className="rounded-2xl border bg-background p-5">
+          <div className="space-y-2">
+            <p className="font-medium text-foreground">Open exam preview</p>
+            <p className="text-sm text-muted-foreground">
+              {discovery.state === "preview_open"
+                ? "Preview is live. Verification opens 5 minutes before the exam starts."
+                : discovery.state === "verification_open"
+                  ? "Countdown is live and you can now verify your exam access."
+                  : "The exam is live. Verify your access or continue from the preview page."}
+            </p>
+          </div>
+          <Button asChild className="mt-5 w-full gap-2">
+            <Link href={previewHref}>
+              Open preview
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </Button>
+        </div>
+      ) : discovery.state === "preview_locked" ? (
+        <SearchStateCard
+          icon={<Clock className="h-5 w-5" />}
+          title="Preview locked"
+          description={`Preview opens on ${formatDate(discovery.previewOpensAt ?? discovery.period.examStartDate, "MMMM d, yyyy 'at' h:mm a")}.`}
         />
       ) : (
         <SearchStateCard
           icon={<Clock className="h-5 w-5" />}
-          title={discovery.state === "exam_not_started" ? "Exam has not started" : "Exam window has closed"}
-          description={
-            discovery.state === "exam_not_started"
-              ? `This exam opens on ${formatDate(discovery.period.examStartDate, "MMMM d, yyyy 'at' h:mm a")}.`
-              : `This exam closed on ${formatDate(discovery.period.examEndDate, "MMMM d, yyyy 'at' h:mm a")}.`
-          }
+          title="Exam window has closed"
+          description={`This exam closed on ${formatDate(discovery.period.examEndDate, "MMMM d, yyyy 'at' h:mm a")}.`}
         />
       )}
     </div>

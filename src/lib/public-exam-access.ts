@@ -5,7 +5,16 @@ export const PUBLIC_EXAM_ACCESS_COOKIE = "sgis_public_exam_session";
 export const PUBLIC_EXAM_OTP_TTL_MINUTES = 10;
 export const PUBLIC_EXAM_RESEND_COOLDOWN_SECONDS = 60;
 export const PUBLIC_EXAM_MAX_CODE_ATTEMPTS = 5;
+export const PUBLIC_EXAM_PREVIEW_WINDOW_MINUTES = 60;
+export const PUBLIC_EXAM_VERIFICATION_WINDOW_MINUTES = 5;
 const PUBLIC_EXAM_SESSION_TTL_HOURS = 12;
+
+export type PublicExamWindowPhase =
+  | "too_early"
+  | "preview"
+  | "verification"
+  | "live"
+  | "closed";
 
 export function createOtpCode() {
   return randomInt(0, 1_000_000).toString().padStart(6, "0");
@@ -38,6 +47,41 @@ export function getSessionExpiryDate(examEndDate: Date | string, now = new Date(
   const examEnd = new Date(examEndDate);
   const maxSession = new Date(now.getTime() + PUBLIC_EXAM_SESSION_TTL_HOURS * 60 * 60 * 1000);
   return examEnd.getTime() < maxSession.getTime() ? examEnd : maxSession;
+}
+
+export function getPublicExamWindow(
+  input: { examStartDate: Date | string; examEndDate: Date | string },
+  now = new Date()
+) {
+  const examStartAt = new Date(input.examStartDate);
+  const examEndAt = new Date(input.examEndDate);
+  const previewOpensAt = new Date(
+    examStartAt.getTime() - PUBLIC_EXAM_PREVIEW_WINDOW_MINUTES * 60 * 1000
+  );
+  const verificationOpensAt = new Date(
+    examStartAt.getTime() - PUBLIC_EXAM_VERIFICATION_WINDOW_MINUTES * 60 * 1000
+  );
+
+  let phase: PublicExamWindowPhase = "closed";
+  if (now > examEndAt) {
+    phase = "closed";
+  } else if (now >= examStartAt) {
+    phase = "live";
+  } else if (now >= verificationOpensAt) {
+    phase = "verification";
+  } else if (now >= previewOpensAt) {
+    phase = "preview";
+  } else {
+    phase = "too_early";
+  }
+
+  return {
+    phase,
+    examStartAt,
+    examEndAt,
+    previewOpensAt,
+    verificationOpensAt,
+  };
 }
 
 export function maskEmailAddress(email: string) {

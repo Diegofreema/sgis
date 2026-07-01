@@ -3,6 +3,7 @@
  * Prerendered at build time and served from the CDN edge.
  */
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import Link from "next/link";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -85,7 +86,13 @@ export default function AdmissionsPage() {
         </div>
       </section>
 
-      <AdmissionCTA />
+      <Suspense fallback={<AdmissionCTAFallback />}>
+        <AdmissionCTA />
+      </Suspense>
     </>
   );
+}
+
+function AdmissionCTAFallback() {
+  return <section className="section-padding bg-primary" aria-hidden="true" />;
 }

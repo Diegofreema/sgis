@@ -22,7 +22,13 @@ export default function PublicLayout({
         <PublicNavbar profile={null} />
       </Suspense>
       <main className="flex-1">{children}</main>
-      <PublicFooter />
+      <Suspense fallback={<FooterFallback />}>
+        <PublicFooter />
+      </Suspense>
     </div>
   );
+}
+
+function FooterFallback() {
+  return <footer className="border-t border-border bg-muted/30 py-16" aria-hidden="true" />;
 }

@@ -1,23 +1,8 @@
 import type { Metadata } from "next";
-import { Playfair_Display, Inter } from "next/font/google";
 import { ThemeProvider } from "@/components/shared/ThemeProvider";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 import { siteConfig } from "@/config/site";
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-sans",
-  display: "swap",
-});
-
-const playfair = Playfair_Display({
-  subsets: ["latin"],
-  variable: "--font-serif",
-  display: "swap",
-  weight: ["400", "500", "600", "700"],
-  style: ["normal", "italic"],
-});
 
 export const metadata: Metadata = {
   title: {
@@ -45,7 +30,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" data-scroll-behavior="smooth" suppressHydrationWarning>
-      <body className={`${inter.variable} ${playfair.variable} antialiased`}>
+      <body className="antialiased">
         <ThemeProvider
           attribute="class"
           defaultTheme="light"

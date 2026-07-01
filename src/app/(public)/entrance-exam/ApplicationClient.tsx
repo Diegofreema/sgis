@@ -417,7 +417,7 @@ export function PublicExamVerificationCard({
           </div>
           <Button type="submit" className="w-full gap-2" disabled={pending}>
             {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
-            Continue to exam
+            Continue
           </Button>
           <Button type="button" variant="outline" className="w-full gap-2" onClick={handleResend} disabled={pending}>
             <RefreshCw className="h-4 w-4" />

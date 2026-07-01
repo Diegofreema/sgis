@@ -23,10 +23,12 @@ import { sendExamResultEmail, sendPublicExamOtpEmail } from "@/lib/email";
 import {
   PUBLIC_EXAM_MAX_CODE_ATTEMPTS,
   PUBLIC_EXAM_OTP_TTL_MINUTES,
+  PUBLIC_EXAM_VERIFICATION_WINDOW_MINUTES,
   PUBLIC_EXAM_RESEND_COOLDOWN_SECONDS,
   clearPublicExamAccessCookie,
   createOtpCode,
   createOtpSalt,
+  getPublicExamWindow,
   getSessionExpiryDate,
   hashOtpCode,
   maskEmailAddress,
@@ -63,13 +65,6 @@ function shuffle<T>(items: T[]) {
     [copy[index], copy[swapIndex]] = [copy[swapIndex], copy[index]];
   }
   return copy;
-}
-
-function getExamWindowState(period: typeof applicationPeriods.$inferSelect) {
-  const now = new Date();
-  if (now < new Date(period.examStartDate)) return "not_started";
-  if (now > new Date(period.examEndDate)) return "closed";
-  return "open";
 }
 
 async function getAttemptWithOwnership(
@@ -242,11 +237,14 @@ export async function requestPublicExamAccess(input: {
     return { success: false, error: "No exam is available for this session." };
   }
 
-  const windowState = getExamWindowState(period);
-  if (windowState === "not_started") {
-    return { success: false, error: "This exam has not started yet." };
+  const window = getPublicExamWindow(period);
+  if (window.phase === "too_early" || window.phase === "preview") {
+    return {
+      success: false,
+      error: `Verification opens ${PUBLIC_EXAM_VERIFICATION_WINDOW_MINUTES} minutes before the exam begins.`,
+    };
   }
-  if (windowState === "closed") {
+  if (window.phase === "closed") {
     return { success: false, error: "This exam window has closed." };
   }
 
@@ -323,14 +321,24 @@ export async function requestPublicExamAccess(input: {
     return { success: false, error: "Could not prepare exam verification. Try again." };
   }
 
-  await sendPublicExamOtpEmail({
-    to: email,
-    applicantName: `${application.firstName} ${application.lastName}`,
-    sessionTitle: period.title,
-    examTitle: exam.title,
-    code,
-    expiresInMinutes: PUBLIC_EXAM_OTP_TTL_MINUTES,
-  });
+  try {
+    await sendPublicExamOtpEmail({
+      to: email,
+      applicantName: `${application.firstName} ${application.lastName}`,
+      sessionTitle: period.title,
+      examTitle: exam.title,
+      code,
+      expiresInMinutes: PUBLIC_EXAM_OTP_TTL_MINUTES,
+    });
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Could not send the verification code right now.",
+    };
+  }
 
   return {
     success: true,
@@ -421,11 +429,14 @@ export async function verifyPublicExamAccess(input: {
     return { success: false, error: "This exam is no longer available." };
   }
 
-  const windowState = getExamWindowState(period);
-  if (windowState === "not_started") {
-    return { success: false, error: "This exam has not started yet." };
+  const window = getPublicExamWindow(period);
+  if (window.phase === "too_early" || window.phase === "preview") {
+    return {
+      success: false,
+      error: `Verification opens ${PUBLIC_EXAM_VERIFICATION_WINDOW_MINUTES} minutes before the exam begins.`,
+    };
   }
-  if (windowState === "closed") {
+  if (window.phase === "closed") {
     return { success: false, error: "This exam window has closed." };
   }
 
@@ -458,7 +469,7 @@ export async function verifyPublicExamAccess(input: {
 
   await setPublicExamAccessCookie(accessSession.id, sessionExpiresAt);
 
-  return { success: true, data: { redirectTo: "/entrance-exam/exam/start" } };
+  return { success: true, data: { redirectTo: "/entrance-exam/exam" } };
 }
 
 export async function clearPublicExamAccess(): Promise<ActionResult> {
@@ -513,12 +524,12 @@ export async function startExamAttempt(
     .then((rows) => rows[0] ?? null);
 
   if (!period) return { success: false, error: "Application session not found." };
-  const windowState = getExamWindowState(period);
-  if (windowState === "not_started") {
-    return { success: false, error: "Exam has not started yet." };
-  }
-  if (windowState === "closed") {
+  const window = getPublicExamWindow(period);
+  if (window.phase === "closed") {
     return { success: false, error: "Exam window has closed." };
+  }
+  if (window.phase !== "live") {
+    return { success: false, error: "Exam has not started yet." };
   }
 
   const existing = await getAttemptByUser(profile.id, examId);
@@ -567,12 +578,12 @@ export async function startPublicExamAttempt(): Promise<ActionResult<{ attemptId
     return { success: false, error: "Exam is not available." };
   }
 
-  const windowState = getExamWindowState(access.period);
-  if (windowState === "not_started") {
-    return { success: false, error: "Exam has not started yet." };
-  }
-  if (windowState === "closed") {
+  const window = getPublicExamWindow(access.period);
+  if (window.phase === "closed") {
     return { success: false, error: "Exam window has closed." };
+  }
+  if (window.phase !== "live") {
+    return { success: false, error: "Exam has not started yet." };
   }
 
   if (access.attempt) {
