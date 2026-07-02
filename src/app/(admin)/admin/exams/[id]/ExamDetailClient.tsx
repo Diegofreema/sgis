@@ -447,6 +447,16 @@ export function ExamDetailClient({
               </Button>
             </>
           )}
+          {!isNew && exam.status === 'closed' && (
+            <Button
+              variant="outline"
+              onClick={() => setPendingAction('active')}
+              disabled={statusUpdating}
+              className="gap-2 cursor-pointer"
+            >
+              Reopen Exam
+            </Button>
+          )}
           {!isNew && exam.status !== 'archived' && exam.status !== 'active' && (
             <Button
               variant="outline"

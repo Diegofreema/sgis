@@ -342,6 +342,9 @@ export async function updateExamStatus(
   if (status === "active") {
     const period = await getApplicationPeriodForExam(currentExam.applicationPeriodId);
     if (!period) return { success: false, error: "Exam session not found." };
+    if (new Date(period.examStartDate) <= new Date()) {
+      return { success: false, error: "The exam start date must be in the future before activating." };
+    }
     if (new Date(period.examEndDate) < new Date()) {
       return { success: false, error: "This session exam window has already passed." };
     }
