@@ -71,6 +71,13 @@
       "when": 1782846031723,
       "tag": "0009_thin_puff_adder",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1783108800000,
+      "tag": "0010_admin_only_roles",
+      "breakpoints": true
     }
   ]
 }

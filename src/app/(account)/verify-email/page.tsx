@@ -28,8 +28,8 @@ async function VerifyEmailContent({ searchParams }: Props) {
         <div className="flex items-start gap-3 rounded-xl bg-primary/5 border border-primary/10 p-3">
           <ShieldCheck className="h-4 w-4 text-primary mt-0.5 shrink-0" />
           <p className="text-sm text-muted-foreground">
-            Your parent account stays locked until the email address is confirmed. After verification,
-            we’ll sign you in automatically and send you to your dashboard.
+            Your admin account stays locked until the email address is confirmed. After verification,
+            we’ll sign you in automatically and send you to the admin panel.
           </p>
         </div>
 

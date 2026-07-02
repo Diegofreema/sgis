@@ -727,7 +727,8 @@ export function SettingsClient({
         </CardContent>
       </Card>
 
-      {/* Bank Accounts */}
+      {/* ponytail: payment management removed from product; keep legacy CRUD hidden until data model is deleted */}
+      {false && (
       <Card>
         <CardHeader>
           <div className="flex items-start justify-between gap-4">
@@ -738,7 +739,7 @@ export function SettingsClient({
               </CardTitle>
               <CardDescription className="text-xs mt-1">
                 Add the bank accounts students should transfer fees to.
-                Active accounts are displayed on the student payments page.
+                Active accounts are displayed on the entrance exam payment screen.
               </CardDescription>
             </div>
             <Button
@@ -840,6 +841,7 @@ export function SettingsClient({
           ))}
         </CardContent>
       </Card>
+      )}
 
       {/* Save settings */}
       <div className="flex justify-end pt-2">

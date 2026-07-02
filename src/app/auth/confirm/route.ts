@@ -6,8 +6,8 @@ import { markProfileEmailVerified } from "@/server/auth/profile-state";
 
 function getRedirectDestination(nextPath: string, profile: Awaited<ReturnType<typeof getProfileByAuthId>>) {
   if (nextPath === "/reset-password") return nextPath;
-  if (profile?.role === "admin") return "/admin";
-  return "/login";
+  void profile;
+  return "/admin";
 }
 
 function sanitizeNextPath(nextPath: string | null) {

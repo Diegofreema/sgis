@@ -14,7 +14,7 @@ import { db, profiles } from "@/db";
 import { eq } from "drizzle-orm";
 import type { UserRole } from "@/constants/roles";
 import type { UserProfile } from "@/types/auth";
-import { getProfileById, toUserProfile } from "@/server/queries/users.queries";
+import { toUserProfile } from "@/server/queries/users.queries";
 
 /**
  * Returns the currently authenticated Supabase user, or null.
@@ -65,34 +65,11 @@ export async function requireAuth(): Promise<UserProfile> {
  */
 export async function requireRole(
   allowedRoles: UserRole[],
-  redirectTo = "/dashboard"
+  redirectTo = "/admin"
 ): Promise<UserProfile> {
   const profile = await requireAuth();
   if (!allowedRoles.includes(profile.role)) {
     redirect(redirectTo);
   }
   return profile;
-}
-
-export async function requireStudentPasswordReady(): Promise<UserProfile> {
-  const profile = await requireAuth();
-  if (profile.role === "student" && profile.requiresPasswordChange) {
-    redirect("/dashboard/profile?password=required");
-  }
-  return profile;
-}
-
-export async function requireOwnedStudent(
-  parentProfileId: string,
-  studentProfileId: string
-): Promise<UserProfile> {
-  const student = await getProfileById(studentProfileId);
-  if (
-    !student ||
-    student.role !== "student" ||
-    student.parentProfileId !== parentProfileId
-  ) {
-    redirect("/dashboard/students");
-  }
-  return student;
 }

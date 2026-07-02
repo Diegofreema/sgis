@@ -1,12 +1,8 @@
 "use server";
 
 import { requireRole } from "@/lib/auth";
-import { resolveManagedProfileContext } from "@/lib/managed-profile";
 import { db, applications, payments } from "@/db";
-import { eq, and, inArray } from "drizzle-orm";
-import { generateReference } from "@/lib/utils";
-import { ACTIVE_PAYMENT_STATUSES } from "@/constants/payment";
-import type { PaymentPurpose } from "@/constants/payment";
+import { eq, and } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { logActivity } from "@/lib/audit";
 
@@ -19,102 +15,14 @@ type ActionResult<T = void> =
  * Idempotent: returns the existing active payment if one already exists.
  */
 export async function createPaymentRecord(input: {
-  purpose: PaymentPurpose;
+  purpose: string;
   applicationId?: string;
   amount: number;
   currency?: string;
   targetStudentProfileId?: string;
 }): Promise<ActionResult<{ paymentId: string; reference: string; isExisting: boolean }>> {
-  const context = await resolveManagedProfileContext(input.targetStudentProfileId);
-  if (context.target.role === "parent") {
-    return {
-      success: false,
-      error: "Select one of your students before managing payments.",
-    };
-  }
-  if (!db) return { success: false, error: "Service unavailable" };
-  if (
-    !context.isManagingStudent &&
-    context.target.role === "student" &&
-    context.target.requiresPasswordChange
-  ) {
-    return {
-      success: false,
-      error: "Change your password before managing payments.",
-    };
-  }
-
-  // Idempotency: return existing active payment to avoid duplicates
-  const existing = await db
-    .select()
-    .from(payments)
-    .where(
-      and(
-        eq(payments.userId, context.target.id),
-        eq(payments.purpose, input.purpose),
-        inArray(payments.status, ACTIVE_PAYMENT_STATUSES)
-      )
-    )
-    .limit(1);
-
-  if (existing[0]) {
-    return {
-      success: true,
-      data: {
-        paymentId: existing[0].id,
-        reference: existing[0].reference,
-        isExisting: true,
-      },
-    };
-  }
-
-  const reference = generateReference("SGIS");
-
-  const [payment] = await db
-    .insert(payments)
-    .values({
-      userId: context.target.id,
-      applicationId: input.applicationId ?? null,
-      purpose: input.purpose,
-      amount: String(input.amount),
-      currency: input.currency ?? "NGN",
-      status: "pending",
-      reference,
-    })
-    .returning();
-
-  // If exam application, mark it as pending_payment
-  if (
-    input.purpose === "entrance_exam_registration" &&
-    input.applicationId
-  ) {
-    await db
-      .update(applications)
-      .set({ status: "pending_payment", updatedAt: new Date() })
-      .where(
-        and(
-          eq(applications.id, input.applicationId),
-          eq(applications.userId, context.target.id)
-        )
-      );
-  }
-
-  await logActivity({
-    actorId: context.target.id,
-    actorRole: context.target.role,
-    action: "payment.created",
-    entityType: "payment",
-    entityId: payment.id,
-    metadata: { purpose: input.purpose, amount: input.amount, currency: input.currency ?? "NGN" },
-  });
-
-  revalidatePath("/dashboard/payments");
-  revalidatePath("/dashboard/students");
-
-  return {
-    success: true,
-    data: { paymentId: payment.id, reference: payment.reference, isExisting: false },
-  };
+  void input;
+  return { success: false, error: "Student payment flow has been removed." };
 }
 
 /**
@@ -127,81 +35,8 @@ export async function submitPaymentProof(input: {
   proofNote?: string;
   targetStudentProfileId?: string;
 }): Promise<ActionResult> {
-  const context = await resolveManagedProfileContext(input.targetStudentProfileId);
-  if (context.target.role === "parent") {
-    return {
-      success: false,
-      error: "Select one of your students before submitting payment proof.",
-    };
-  }
-  if (!db) return { success: false, error: "Service unavailable" };
-  if (
-    !context.isManagingStudent &&
-    context.target.role === "student" &&
-    context.target.requiresPasswordChange
-  ) {
-    return {
-      success: false,
-      error: "Change your password before submitting payment proof.",
-    };
-  }
-
-  // Make sure the payment belongs to this user and is still pending
-  const existing = await db
-    .select()
-    .from(payments)
-    .where(
-      and(
-        eq(payments.id, input.paymentId),
-        eq(payments.userId, context.target.id)
-      )
-    )
-    .limit(1);
-
-  const payment = existing[0];
-  if (!payment) return { success: false, error: "Payment not found" };
-
-  if (payment.status === "approved") {
-    return { success: false, error: "This payment has already been approved." };
-  }
-  if (payment.status === "submitted") {
-    return {
-      success: false,
-      error: "Proof already submitted. Please wait for admin review.",
-    };
-  }
-
-  if (!input.transactionRef && !input.proofOfPaymentUrl && !input.proofNote) {
-    return {
-      success: false,
-      error: "Please provide at least a transaction reference, note, or receipt image.",
-    };
-  }
-
-  await db
-    .update(payments)
-    .set({
-      status: "submitted",
-      transactionRef: input.transactionRef ?? null,
-      proofOfPaymentUrl: input.proofOfPaymentUrl ?? null,
-      proofNote: input.proofNote ?? null,
-      updatedAt: new Date(),
-    })
-    .where(eq(payments.id, input.paymentId));
-
-  await logActivity({
-    actorId: context.target.id,
-    actorRole: context.target.role,
-    action: "payment.proof_submitted",
-    entityType: "payment",
-    entityId: input.paymentId,
-  });
-
-  revalidatePath("/dashboard/payments");
-  revalidatePath("/admin/payments");
-  revalidatePath("/dashboard/students");
-
-  return { success: true, data: undefined };
+  void input;
+  return { success: false, error: "Student payment flow has been removed." };
 }
 
 /**
@@ -266,7 +101,6 @@ export async function approvePayment(
 
   revalidatePath("/admin/payments");
   revalidatePath("/admin/applicants");
-  revalidatePath("/dashboard/payments");
 
   return { success: true, data: undefined };
 }
@@ -301,7 +135,6 @@ export async function rejectPayment(
   });
 
   revalidatePath("/admin/payments");
-  revalidatePath("/dashboard/payments");
 
   return { success: true, data: undefined };
 }

@@ -7,7 +7,7 @@ import { db, examAttempts } from "@/db";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { getExamForStudent, getVerifiedPublicExamAccess } from "@/server/queries/exams.queries";
-import { ExamPortalClient } from "@/app/(dashboard)/dashboard/exam/[attemptId]/ExamPortalClient";
+import { ExamPortalClient } from "@/components/exam/ExamPortalClient";
 
 type Props = {
   params: Promise<{ attemptId: string }>;

@@ -9,7 +9,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-export const userRoleEnum = pgEnum("user_role", ["student", "parent", "admin"]);
+export const userRoleEnum = pgEnum("user_role", ["admin"]);
 
 export const genderEnum = pgEnum("gender", ["male", "female", "other"]);
 
@@ -19,7 +19,7 @@ export const profiles = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     authUserId: uuid("auth_user_id").notNull().unique(),
     parentProfileId: uuid("parent_profile_id"),
-    role: userRoleEnum("role").notNull().default("student"),
+    role: userRoleEnum("role").notNull().default("admin"),
     firstName: text("first_name"),
     lastName: text("last_name"),
     email: text("email").notNull(),

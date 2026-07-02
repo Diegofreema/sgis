@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath, revalidateTag } from "next/cache";
-import { db, exams, questions, examQuestions, profiles, galleryItems, announcements, applicationPeriods } from "@/db";
+import { db, exams, questions, examQuestions, galleryItems, announcements, applicationPeriods } from "@/db";
 import { and, desc, eq, inArray, ne } from "drizzle-orm";
 import { requireRole } from "@/lib/auth";
 import { getAnnouncementLengthIssues } from "@/lib/announcements";
@@ -161,8 +161,6 @@ function revalidateExamPaths(examId?: string) {
   revalidatePath("/admin/exams");
   revalidatePath("/admin/question-bank");
   revalidatePath("/admin");
-  revalidatePath("/dashboard/exam");
-  revalidatePath("/dashboard/results");
   revalidatePath("/entrance-exam");
   revalidatePath("/entrance-exam/exam");
   if (examId) revalidatePath(`/admin/exams/${examId}`);
@@ -704,23 +702,6 @@ export async function updateQuestion(
 
 export async function deleteQuestion(questionId: string): Promise<ActionResult> {
   return deleteQuestionBankItem(questionId);
-}
-
-// ─── Users ───────────────────────────────────────────────────────────────────
-
-export async function updateUserRole(
-  profileId: string,
-  role: "student" | "parent" | "admin"
-): Promise<ActionResult> {
-  await requireRole(["admin"]);
-  if (!db) return { success: false, error: "Service unavailable" };
-
-  await db
-    .update(profiles)
-    .set({ role, updatedAt: new Date() })
-    .where(eq(profiles.id, profileId));
-
-  return { success: true, data: undefined };
 }
 
 // ─── Gallery ─────────────────────────────────────────────────────────────────

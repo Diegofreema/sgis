@@ -2,7 +2,7 @@ import { db, activityLogs } from "@/db";
 
 type LogActivityParams = {
   actorId?: string | null;
-  actorRole?: "student" | "parent" | "admin";
+  actorRole?: "admin";
   action: string;
   entityType?: string;
   entityId?: string;

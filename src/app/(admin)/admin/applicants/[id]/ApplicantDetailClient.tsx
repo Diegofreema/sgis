@@ -203,7 +203,7 @@ export function ApplicantDetailClient({ application, supportingDocuments, examAt
                       target="_blank"
                       rel="noopener noreferrer"
                     >
-                      View payment receipt
+                      View application receipt
                     </a>
                   </Button>
                 )}

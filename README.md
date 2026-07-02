@@ -28,23 +28,23 @@ Public self-registration is parent-only. Student accounts are created by a paren
 
 ### Parent flow
 
-1. A parent signs up at `/register`.
-2. Supabase sends the verification email.
-3. The parent completes verification through `/auth/confirm`.
-4. The parent signs in and lands on `/dashboard`.
+Parent self-registration is currently disabled.
+
+- `/register` redirects to `/entrance-exam`.
+- If parent signup is re-enabled later, verification and recovery emails are sent by Supabase Auth, not `src/lib/email.ts`.
 
 ### Student flow
 
-1. A parent creates the student from `/dashboard/students`.
-2. The app creates the Supabase user as email-confirmed.
-3. The app sends the temporary credentials by email.
-4. The student signs in and is forced to change the temporary password before using the rest of the dashboard.
+Student self-service creation is also currently disabled.
+
+- If this flow is re-enabled later, the app sends student credential emails through Resend via `src/lib/email.ts`.
 
 ### Password flows
 
 - Forgot password starts at `/forgot-password`.
 - Recovery links land on `/reset-password`.
 - Logged-in users can change passwords from `/dashboard/profile`.
+- Password reset emails are sent by Supabase Auth.
 
 ## Required Environment
 
@@ -58,21 +58,32 @@ Required for runtime auth flows:
 - `DATABASE_URL`
 - `NEXT_PUBLIC_APP_URL`
 
-Required for real student credential email delivery:
+Required for app-managed email delivery (`src/lib/email.ts`):
 
-- `SMTP_HOST`
-- `SMTP_PORT`
-- `SMTP_USER`
-- `SMTP_PASS`
+- `RESEND_API_KEY`
 - `SMTP_FROM_EMAIL`
 
 Optional:
 
 - `SMTP_FROM_NAME`
-- `SMTP_SECURE`
 - `EMAIL_OUTBOX_DIR`
 
-If SMTP credentials are missing in development, the app writes outgoing student credential emails to a local outbox directory instead of failing. By default that directory is `.email-outbox/`.
+App-managed emails currently include:
+
+- public application receipt
+- public exam OTP / verification code
+- application status updates
+- exam result emails
+
+If `RESEND_API_KEY` is missing in development, the app writes outgoing mail to `.email-outbox/` instead of sending it.
+
+Supabase Auth emails are configured separately in Supabase:
+
+- signup / verification emails
+- resend verification emails
+- forgot-password / recovery emails
+
+Those flows use `supabase.auth.*` server actions and require correct Auth email settings plus the right site URL / redirect URL in Supabase.
 
 ## Bootstrap an Admin Account
 

@@ -73,7 +73,8 @@ export function ExamPortalClient({
     [session.flaggedQuestionIds]
   );
   const answeredCount = answeredIds.size;
-  const progress = questions.length === 0 ? 0 : Math.round((answeredCount / questions.length) * 100);
+  const progress =
+    questions.length === 0 ? 0 : Math.round((answeredCount / questions.length) * 100);
   const currentQuestion = questions[session.currentQuestionIndex] ?? questions[0] ?? null;
 
   const flushUnsyncedAnswers = useCallback(async () => {
@@ -101,7 +102,14 @@ export function ExamPortalClient({
     } finally {
       syncingRef.current = false;
     }
-  }, [accessMode, attemptId, markAnswerSynced, markSyncState, session.unsyncedAnswers, sessionKey]);
+  }, [
+    accessMode,
+    attemptId,
+    markAnswerSynced,
+    markSyncState,
+    session.unsyncedAnswers,
+    sessionKey,
+  ]);
 
   useEffect(() => {
     initializeSession(sessionKey);
@@ -151,23 +159,34 @@ export function ExamPortalClient({
     if (autoSubmitting) return;
     setAutoSubmitting(true);
     toast.warning("Time is up. Submitting your exam...");
-    const answersPayload = Object.entries(session.localAnswers).map(([questionId, selectedOption]) => ({
-      questionId,
-      selectedOption,
-    }));
+    const answersPayload = Object.entries(session.localAnswers).map(
+      ([questionId, selectedOption]) => ({
+        questionId,
+        selectedOption,
+      })
+    );
     const result = await submitExam(attemptId, accessMode, answersPayload);
     if (result.success) {
       clearSession(sessionKey);
       router.push(
         accessMode === "public"
           ? `/entrance-exam?applicationId=${encodeURIComponent(applicationId)}#status`
-          : "/dashboard/results"
+          : "/admin"
       );
       return;
     }
     toast.error(result.error);
     setAutoSubmitting(false);
-  }, [accessMode, applicationId, attemptId, autoSubmitting, clearSession, router, session.localAnswers, sessionKey]);
+  }, [
+    accessMode,
+    applicationId,
+    attemptId,
+    autoSubmitting,
+    clearSession,
+    router,
+    session.localAnswers,
+    sessionKey,
+  ]);
 
   const handleSelectOption = useCallback(
     async (questionId: string, option: string) => {
@@ -184,10 +203,12 @@ export function ExamPortalClient({
   );
 
   const handleSubmit = useCallback(async () => {
-    const answersPayload = Object.entries(session.localAnswers).map(([questionId, selectedOption]) => ({
-      questionId,
-      selectedOption,
-    }));
+    const answersPayload = Object.entries(session.localAnswers).map(
+      ([questionId, selectedOption]) => ({
+        questionId,
+        selectedOption,
+      })
+    );
     const result = await submitExam(attemptId, accessMode, answersPayload);
     if (!result.success) {
       toast.error(result.error);
@@ -199,7 +220,7 @@ export function ExamPortalClient({
     router.push(
       accessMode === "public"
         ? `/entrance-exam?applicationId=${encodeURIComponent(applicationId)}#status`
-        : "/dashboard/results"
+        : "/admin"
     );
   }, [accessMode, applicationId, attemptId, clearSession, router, session.localAnswers, sessionKey]);
 
@@ -227,7 +248,11 @@ export function ExamPortalClient({
                   : "bg-success/10 text-success"
             }`}
           >
-            {syncState === "offline" ? "Stored locally" : syncState === "saving" ? "Saving..." : "Saved"}
+            {syncState === "offline"
+              ? "Stored locally"
+              : syncState === "saving"
+                ? "Saving..."
+                : "Saved"}
           </div>
           <ExamTimer totalSeconds={secondsRemaining} onExpire={handleExpire} />
           <Button
@@ -238,7 +263,11 @@ export function ExamPortalClient({
           >
             <Menu className="h-4 w-4" />
           </Button>
-          <Button size="sm" className="gap-2 font-medium shadow-brand-sm" onClick={() => setSubmitDialogOpen(true)}>
+          <Button
+            size="sm"
+            className="gap-2 font-medium shadow-brand-sm"
+            onClick={() => setSubmitDialogOpen(true)}
+          >
             <Send className="h-4 w-4" />
             <span className="hidden sm:inline">Submit</span>
           </Button>
@@ -287,45 +316,38 @@ export function ExamPortalClient({
                 </Button>
               ) : (
                 <Button onClick={() => setSubmitDialogOpen(true)} className="gap-2">
+                  Review & Submit
                   <Send className="h-4 w-4" />
-                  Submit Exam
                 </Button>
               )}
             </div>
           </div>
         </main>
 
-        <aside className="hidden w-72 shrink-0 border-l border-border bg-muted/20 p-4 lg:block">
+        <aside className="hidden w-80 shrink-0 border-l border-border bg-muted/20 lg:block">
           <QuestionNavigator
-            total={questions.length}
-            current={session.currentQuestionIndex}
-            answeredIds={answeredIds}
-            flaggedIds={flaggedIds}
-            questionIds={questions.map((question) => question.id)}
-            onSelect={(index) => setCurrentQuestion(sessionKey, index)}
+            questions={questions}
+            currentQuestionIndex={session.currentQuestionIndex}
+            answeredQuestionIds={answeredIds}
+            flaggedQuestionIds={flaggedIds}
+            onSelectQuestion={(index) => setCurrentQuestion(sessionKey, index)}
           />
         </aside>
       </div>
 
       {mobileNavigatorOpen && (
-        <div className="fixed inset-0 z-20 bg-background/80 backdrop-blur-sm lg:hidden">
-          <div className="absolute inset-x-0 bottom-0 rounded-t-3xl border bg-background p-5 shadow-2xl">
-            <div className="mb-4 flex items-center justify-between">
-              <p className="font-serif text-lg font-semibold text-foreground">Question Navigator</p>
-              <Button variant="ghost" size="sm" onClick={() => setMobileNavigatorOpen(false)}>
-                Close
-              </Button>
-            </div>
+        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm lg:hidden">
+          <div className="absolute inset-y-0 right-0 w-full max-w-sm border-l border-border bg-background shadow-xl">
             <QuestionNavigator
-              total={questions.length}
-              current={session.currentQuestionIndex}
-              answeredIds={answeredIds}
-              flaggedIds={flaggedIds}
-              questionIds={questions.map((question) => question.id)}
-              onSelect={(index) => {
+              questions={questions}
+              currentQuestionIndex={session.currentQuestionIndex}
+              answeredQuestionIds={answeredIds}
+              flaggedQuestionIds={flaggedIds}
+              onSelectQuestion={(index) => {
                 setCurrentQuestion(sessionKey, index);
                 setMobileNavigatorOpen(false);
               }}
+              onClose={() => setMobileNavigatorOpen(false)}
             />
           </div>
         </div>
@@ -334,9 +356,11 @@ export function ExamPortalClient({
       <SubmitExamDialog
         open={submitDialogOpen}
         onOpenChange={setSubmitDialogOpen}
-        onConfirm={handleSubmit}
         answeredCount={answeredCount}
-        totalCount={questions.length}
+        totalQuestions={questions.length}
+        flaggedCount={flaggedIds.size}
+        isSubmitting={autoSubmitting}
+        onConfirm={handleSubmit}
       />
     </div>
   );

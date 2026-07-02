@@ -51,7 +51,6 @@ export async function createBankAccount(input: {
   });
 
   revalidatePath("/admin/settings");
-  revalidatePath("/dashboard/payments");
 
   return { success: true, data: { id: account.id } };
 }
@@ -88,7 +87,6 @@ export async function updateBankAccount(
   });
 
   revalidatePath("/admin/settings");
-  revalidatePath("/dashboard/payments");
 
   return { success: true, data: undefined };
 }
@@ -100,7 +98,6 @@ export async function deleteBankAccount(id: string): Promise<ActionResult> {
   await db.delete(bankAccounts).where(eq(bankAccounts.id, id));
 
   revalidatePath("/admin/settings");
-  revalidatePath("/dashboard/payments");
 
   return { success: true, data: undefined };
 }
@@ -118,7 +115,6 @@ export async function toggleBankAccountActive(
     .where(eq(bankAccounts.id, id));
 
   revalidatePath("/admin/settings");
-  revalidatePath("/dashboard/payments");
 
   return { success: true, data: undefined };
 }

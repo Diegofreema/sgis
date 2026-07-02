@@ -14,7 +14,6 @@ export async function proxy(request: NextRequest) {
   let currentProfile:
     | {
         role: string;
-        requiresPasswordChange: boolean;
       }
     | undefined;
 
@@ -22,7 +21,6 @@ export async function proxy(request: NextRequest) {
     currentProfile = await db
       .select({
         role: profiles.role,
-        requiresPasswordChange: profiles.requiresPasswordChange,
       })
       .from(profiles)
       .where(eq(profiles.authUserId, user.id))
@@ -35,7 +33,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/admin", request.url));
   }
 
-  // ─── Disable old parent/student dashboard routes ─────────────────────
+  // ─── Disable removed dashboard routes ─────────────────────────────────
   if (pathname.startsWith("/dashboard")) {
     if (!user) {
       const redirectUrl = new URL("/login", request.url);

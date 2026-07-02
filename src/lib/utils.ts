@@ -2,7 +2,6 @@ import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { nanoid } from "nanoid";
 import { format, formatDistanceToNow } from "date-fns";
-import { randomBytes } from "node:crypto";
 
 /** Merge Tailwind classes safely */
 export function cn(...inputs: ClassValue[]) {
@@ -65,14 +64,4 @@ export function truncate(text: string, length = 120): string {
 /** Dev-only sleep */
 export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-/** Generate a high-entropy temporary password for first-time student logins. */
-export function generateTemporaryPassword(length = 14): string {
-  const alphabet =
-    "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*";
-
-  return Array.from(randomBytes(length))
-    .map((byte) => alphabet[byte % alphabet.length])
-    .join("");
 }

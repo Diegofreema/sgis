@@ -10,34 +10,24 @@ import { getInitials, formatDate } from "@/lib/utils";
 type UserRow = {
   id: string;
   authUserId: string;
-  role: "student" | "parent" | "admin";
+  role: "admin";
   firstName: string | null;
   lastName: string | null;
   email: string;
   phone: string | null;
-  parentProfileId: string | null;
   state?: string | null;
   lga?: string | null;
   createdAt: Date;
-  applicationStatus: string | null;
-  paymentStatus: string | null;
-};
-
-const ROLE_COLORS: Record<string, string> = {
-  student: "bg-primary/10 text-primary",
-  parent: "bg-muted text-muted-foreground",
-  admin: "bg-warning/20 text-warning",
 };
 
 type Props = { users: UserRow[] };
 
 export function UsersAdminClient({ users: initialUsers }: Props) {
-  const users = initialUsers.filter((user) => user.role === "admin");
   const [search, setSearch] = useState("");
 
   const q = search.toLowerCase();
 
-  const filteredUsers = users.filter((u) =>
+  const filteredUsers = initialUsers.filter((u) =>
     !q ||
     u.email.toLowerCase().includes(q) ||
     (u.firstName ?? "").toLowerCase().includes(q) ||
@@ -66,7 +56,7 @@ export function UsersAdminClient({ users: initialUsers }: Props) {
       <div>
         <h1 className="font-serif text-2xl font-semibold text-foreground">Users</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          {users.length} admin{users.length !== 1 ? "s" : ""}
+          {initialUsers.length} admin{initialUsers.length !== 1 ? "s" : ""}
         </p>
       </div>
 
@@ -87,7 +77,7 @@ export function UsersAdminClient({ users: initialUsers }: Props) {
           >
             <UserNameCell user={user} />
             <div className="flex items-center gap-3 shrink-0">
-              <Badge className={ROLE_COLORS.admin}>admin</Badge>
+              <Badge className="bg-warning/20 text-warning">admin</Badge>
               <span className="text-xs text-muted-foreground hidden sm:block">
                 {formatDate(user.createdAt)}
               </span>

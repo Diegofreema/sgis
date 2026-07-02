@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { requireRole } from "@/lib/auth";
-import { db, applications, payments, announcements, applicationPeriods } from "@/db";
+import { db, applications, announcements, applicationPeriods } from "@/db";
 import { eq, count, desc } from "drizzle-orm";
 import { StatsCard } from "@/components/admin/StatsCard";
 import { FadeIn } from "@/components/animations/FadeIn";
@@ -8,8 +8,7 @@ import { StaggerChildren, StaggerItem } from "@/components/animations/StaggerChi
 import { Skeleton } from "@/components/ui/skeleton";
 import { SessionFilterSelect } from "./SessionFilterSelect";
 import {
-  Users, FileText, CheckCircle2, CreditCard, TrendingUp,
-  XCircle, Bell, Clock,
+  Users, FileText, CheckCircle2, Bell, Clock,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -36,22 +35,9 @@ async function StatsGrid({ periodId }: { periodId?: string }) {
         approved: counts.approved ?? 0,
       };
     });
-  const paymentCountsPromise = db
-    .select({ status: payments.status, count: count() })
-    .from(payments)
-    .groupBy(payments.status)
-    .then((rows) => {
-      const counts = Object.fromEntries(rows.map((r) => [r.status, Number(r.count)]));
-      return {
-        total: Object.values(counts).reduce((sum, value) => sum + value, 0),
-        approved: counts.approved ?? 0,
-        rejected: counts.rejected ?? 0,
-      };
-    });
 
-  const [applicationCounts, paymentCounts, publishedAnnouncements] = await Promise.all([
+  const [applicationCounts, publishedAnnouncements] = await Promise.all([
     applicationCountsPromise,
-    paymentCountsPromise,
     db.select({ count: count() }).from(announcements).where(eq(announcements.status, "published")).then((r) => Number(r[0]?.count ?? 0)),
   ]);
 
@@ -61,9 +47,6 @@ async function StatsGrid({ periodId }: { periodId?: string }) {
       <StaggerItem><StatsCard title="Pending"            value={applicationCounts.pending}   icon={Clock}        variant="warning" /></StaggerItem>
       <StaggerItem><StatsCard title="Approved"           value={applicationCounts.approved}  icon={CheckCircle2} variant="success" /></StaggerItem>
       <StaggerItem><StatsCard title="Announcements"      value={publishedAnnouncements} icon={Bell} /></StaggerItem>
-      <StaggerItem><StatsCard title="Total Payments"     value={paymentCounts.total}    icon={CreditCard} /></StaggerItem>
-      <StaggerItem><StatsCard title="Approved Payments"  value={paymentCounts.approved} icon={TrendingUp}   variant="success" /></StaggerItem>
-      <StaggerItem><StatsCard title="Rejected Payments"  value={paymentCounts.rejected} icon={XCircle}      variant="destructive" /></StaggerItem>
       <StaggerItem><StatsCard title="Applications"       value={applicationCounts.total} icon={FileText}     description={periodId ? "This session" : "All time"} /></StaggerItem>
     </StaggerChildren>
   );

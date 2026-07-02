@@ -191,8 +191,6 @@ function revalidateApplicationPeriodPaths() {
   revalidatePath("/");
   revalidatePath("/admissions");
   revalidatePath("/entrance-exam");
-  revalidatePath("/dashboard");
-  revalidatePath("/dashboard/application");
   revalidatePath("/admin/settings");
   revalidatePath("/admin");
 }

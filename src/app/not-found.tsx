@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { Home, LayoutDashboard } from "lucide-react";
+import { Home, Shield } from "lucide-react";
 
 export default function NotFound() {
   return (
@@ -37,9 +37,9 @@ export default function NotFound() {
             </Link>
           </Button>
           <Button variant="outline" asChild>
-            <Link href="/dashboard">
-              <LayoutDashboard className="h-4 w-4 mr-2" />
-              Dashboard
+            <Link href="/admin">
+              <Shield className="h-4 w-4 mr-2" />
+              Admin
             </Link>
           </Button>
         </div>

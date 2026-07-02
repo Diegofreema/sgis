@@ -2,7 +2,7 @@
  * Auth layout — login / register / forgot-password.
  *
  * Server-side guard: authenticated users are immediately redirected to
- * /dashboard (defense-in-depth on top of the edge middleware check).
+ * /admin (defense-in-depth on top of the edge middleware check).
  *
  * The dynamic auth check runs inside a <Suspense> boundary so the static
  * decorative panel renders instantly from the prerendered shell.

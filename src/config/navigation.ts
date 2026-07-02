@@ -27,15 +27,6 @@ export const publicNav: NavItem[] = [
   { label: 'Contact', href: '/contact' },
 ];
 
-export const dashboardNav: NavItem[] = [
-  { label: 'Overview', href: '/dashboard' },
-  { label: 'Profile', href: '/dashboard/profile' },
-  { label: 'Application', href: '/dashboard/application' },
-  // { label: 'Payments', href: '/dashboard/payments' },
-  { label: 'Exam', href: '/dashboard/exam' },
-  { label: 'Results', href: '/dashboard/results' },
-];
-
 export const adminNav: NavItem[] = [
   { label: 'Overview', href: '/admin' },
   { label: 'Applicants', href: '/admin/applicants' },

@@ -42,7 +42,7 @@ export type ContentStatus = (typeof CONTENT_STATUS)[keyof typeof CONTENT_STATUS]
 export const APPLICATION_STATUS_LABELS: Record<ApplicationStatus, string> = {
   pending: "Pending",
   draft: "Draft",
-  pending_payment: "Pending Payment",
+  pending_payment: "Pending Review",
   submitted: "Submitted",
   under_review: "Under Review",
   approved: "Approved",
