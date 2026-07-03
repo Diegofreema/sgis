@@ -5,12 +5,8 @@
  */
 import type { Metadata } from 'next';
 import { cacheLife, cacheTag } from 'next/cache';
-import Image from 'next/image';
+import { connection } from 'next/server';
 import { FadeIn } from '@/components/animations/FadeIn';
-import {
-  StaggerChildren,
-  StaggerItem,
-} from '@/components/animations/StaggerChildren';
 import {
   Pagination,
   PaginationContent,
@@ -20,10 +16,12 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from '@/components/ui/pagination';
+import { GalleryGrid } from '@/components/gallery/GalleryGrid';
 import {
   countGalleryItems,
   listGalleryItems,
 } from '@/server/queries/cms.queries';
+import { getCurrentProfile } from '@/lib/auth';
 
 export const metadata: Metadata = {
   title: 'Gallery',
@@ -72,6 +70,7 @@ async function fetchGalleryCount() {
 }
 
 export default async function GalleryPage({ searchParams }: Props) {
+  await connection();
   const params = await searchParams;
   const requestedPage = Math.max(Number(params.page ?? '1') || 1, 1);
   const totalItems = await fetchGalleryCount();
@@ -81,6 +80,8 @@ export default async function GalleryPage({ searchParams }: Props) {
   const start = totalItems === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
   const end = Math.min(currentPage * PAGE_SIZE, totalItems);
   const pageItems = getPageItems(currentPage, totalPages);
+  const profile = await getCurrentProfile();
+  const isAdmin = profile?.role === "admin";
 
   return (
     <>
@@ -115,25 +116,7 @@ export default async function GalleryPage({ searchParams }: Props) {
 
           {items.length > 0 ? (
             <>
-              <StaggerChildren className="columns-1 sm:columns-2 lg:columns-3 gap-4 space-y-4">
-                {items.map((item) => (
-                  <StaggerItem key={item.id}>
-                    <div className="break-inside-avoid rounded-xl overflow-hidden bg-muted group">
-                      <div className="relative">
-                        <Image
-                          src={item.imageUrl}
-                          alt={item.title}
-                          width={600}
-                          height={400}
-                          unoptimized
-                          className="w-full h-auto object-cover group-hover:scale-105 transition-transform duration-500"
-                        />
-                        <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/20 transition-colors duration-300" />
-                      </div>
-                    </div>
-                  </StaggerItem>
-                ))}
-              </StaggerChildren>
+              <GalleryGrid items={items} isAdmin={isAdmin} />
 
               {totalPages > 1 ? (
                 <FadeIn className="mt-10">

@@ -11,6 +11,7 @@ import {
   BookOpen,
   CheckCircle2,
   Clock3,
+  FileText,
   Loader2,
   Plus,
   Save,
@@ -480,6 +481,14 @@ export function ExamDetailClient({
             )}
             {isNew ? 'Create Exam' : 'Save Exam'}
           </Button>
+          {!isNew && (
+            <Button asChild variant="outline" size="sm" className="gap-1.5">
+              <Link href={`/admin/exams/${exam.id}/results`}>
+                <FileText className="h-4 w-4" />
+                Results
+              </Link>
+            </Button>
+          )}
         </div>
       </div>
 

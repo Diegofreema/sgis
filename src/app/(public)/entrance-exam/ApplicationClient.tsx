@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Check,
@@ -35,13 +35,79 @@ type CreatedApplication = {
   emailDeliveryMode: "resend" | "outbox" | "failed";
 };
 
+function getPublicExamFormState(periodId: string, defaultApplicationCode: string) {
+  if (typeof window === "undefined") {
+    return {
+      phase: "request" as const,
+      applicationCode: defaultApplicationCode,
+      email: "",
+      code: "",
+      accessSessionId: null as string | null,
+      maskedEmail: "",
+      expiresAt: "",
+    };
+  }
+
+  try {
+    const stored = window.sessionStorage.getItem(`public-exam-access:${periodId}`);
+    if (!stored) {
+      return {
+        phase: "request" as const,
+        applicationCode: defaultApplicationCode,
+        email: "",
+        code: "",
+        accessSessionId: null as string | null,
+        maskedEmail: "",
+        expiresAt: "",
+      };
+    }
+
+    const parsed = JSON.parse(stored) as {
+      phase?: "request" | "verify";
+      applicationCode?: string;
+      email?: string;
+      code?: string;
+      accessSessionId?: string | null;
+      maskedEmail?: string;
+      expiresAt?: string;
+    };
+
+    return {
+      phase:
+        parsed.phase === "verify" && parsed.accessSessionId
+          ? ("verify" as const)
+          : ("request" as const),
+      applicationCode: parsed.applicationCode ?? defaultApplicationCode,
+      email: parsed.email ?? "",
+      code: parsed.code ?? "",
+      accessSessionId: parsed.accessSessionId ?? null,
+      maskedEmail: parsed.maskedEmail ?? "",
+      expiresAt: parsed.expiresAt ?? "",
+    };
+  } catch {
+    window.sessionStorage.removeItem(`public-exam-access:${periodId}`);
+    return {
+      phase: "request" as const,
+      applicationCode: defaultApplicationCode,
+      email: "",
+      code: "",
+      accessSessionId: null as string | null,
+      maskedEmail: "",
+      expiresAt: "",
+    };
+  }
+}
+
 export function PublicApplicationForm() {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [createdApplication, setCreatedApplication] = useState<CreatedApplication | null>(null);
   const [copied, setCopied] = useState(false);
 
-  function handleSubmit(formData: FormData) {
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+
     startTransition(async () => {
       const result = await createPublicApplication(formData);
       if (!result.success) {
@@ -106,7 +172,7 @@ export function PublicApplicationForm() {
   }
 
   return (
-    <form action={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-6">
       <input type="hidden" name="intendedClass" value="Common Entrance" />
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -292,15 +358,43 @@ export function PublicExamVerificationCard({
   examError?: string;
 }) {
   const router = useRouter();
+  const initialState = getPublicExamFormState(periodId, defaultApplicationCode);
   const [pending, startTransition] = useTransition();
-  const [phase, setPhase] = useState<"request" | "verify">("request");
-  const [applicationCode, setApplicationCode] = useState(defaultApplicationCode);
-  const [email, setEmail] = useState("");
-  const [code, setCode] = useState("");
-  const [accessSessionId, setAccessSessionId] = useState<string | null>(null);
-  const [maskedEmail, setMaskedEmail] = useState<string>("");
-  const [expiresAt, setExpiresAt] = useState<string>("");
+  const [phase, setPhase] = useState<"request" | "verify">(initialState.phase);
+  const [applicationCode, setApplicationCode] = useState(initialState.applicationCode);
+  const [email, setEmail] = useState(initialState.email);
+  const [code, setCode] = useState(initialState.code);
+  const [accessSessionId, setAccessSessionId] = useState<string | null>(
+    initialState.accessSessionId
+  );
+  const [maskedEmail, setMaskedEmail] = useState<string>(initialState.maskedEmail);
+  const [expiresAt, setExpiresAt] = useState<string>(initialState.expiresAt);
   const [actionError, setActionError] = useState<string | null>(examError ?? null);
+  const storageKey = `public-exam-access:${periodId}`;
+
+  useEffect(() => {
+    window.sessionStorage.setItem(
+      storageKey,
+      JSON.stringify({
+        phase,
+        applicationCode,
+        email,
+        code,
+        accessSessionId,
+        maskedEmail,
+        expiresAt,
+      })
+    );
+  }, [
+    accessSessionId,
+    applicationCode,
+    code,
+    email,
+    expiresAt,
+    maskedEmail,
+    phase,
+    storageKey,
+  ]);
 
   function handleRequest(event: React.FormEvent) {
     event.preventDefault();
@@ -343,6 +437,7 @@ export function PublicExamVerificationCard({
         return;
       }
 
+      window.sessionStorage.removeItem(storageKey);
       toast.success("Email verified.");
       router.push(result.data.redirectTo);
       router.refresh();

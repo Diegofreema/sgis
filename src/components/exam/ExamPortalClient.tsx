@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, Menu, Send, WifiOff } from "lucide-react";
+import { ChevronLeft, ChevronRight, Menu, Send, WifiOff, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { ExamTimer } from "@/components/exam/ExamTimer";
@@ -168,9 +168,9 @@ export function ExamPortalClient({
     const result = await submitExam(attemptId, accessMode, answersPayload);
     if (result.success) {
       clearSession(sessionKey);
-      router.push(
+      router.replace(
         accessMode === "public"
-          ? `/entrance-exam?applicationId=${encodeURIComponent(applicationId)}#status`
+          ? `/entrance-exam/exam/${attemptId}/result`
           : "/admin"
       );
       return;
@@ -179,7 +179,6 @@ export function ExamPortalClient({
     setAutoSubmitting(false);
   }, [
     accessMode,
-    applicationId,
     attemptId,
     autoSubmitting,
     clearSession,
@@ -212,17 +211,18 @@ export function ExamPortalClient({
     const result = await submitExam(attemptId, accessMode, answersPayload);
     if (!result.success) {
       toast.error(result.error);
-      return;
+      return false;
     }
 
     clearSession(sessionKey);
     toast.success("Examination submitted successfully.");
-    router.push(
+    router.replace(
       accessMode === "public"
-        ? `/entrance-exam?applicationId=${encodeURIComponent(applicationId)}#status`
+        ? `/entrance-exam/exam/${attemptId}/result`
         : "/admin"
     );
-  }, [accessMode, applicationId, attemptId, clearSession, router, session.localAnswers, sessionKey]);
+    return true;
+  }, [accessMode, attemptId, clearSession, router, session.localAnswers, sessionKey]);
 
   if (!currentQuestion) return null;
 
@@ -326,11 +326,12 @@ export function ExamPortalClient({
 
         <aside className="hidden w-80 shrink-0 border-l border-border bg-muted/20 lg:block">
           <QuestionNavigator
-            questions={questions}
-            currentQuestionIndex={session.currentQuestionIndex}
-            answeredQuestionIds={answeredIds}
-            flaggedQuestionIds={flaggedIds}
-            onSelectQuestion={(index) => setCurrentQuestion(sessionKey, index)}
+            total={questions.length}
+            current={session.currentQuestionIndex}
+            answeredIds={answeredIds}
+            flaggedIds={flaggedIds}
+            questionIds={questions.map((q) => q.id)}
+            onSelect={(index) => setCurrentQuestion(sessionKey, index)}
           />
         </aside>
       </div>
@@ -338,17 +339,29 @@ export function ExamPortalClient({
       {mobileNavigatorOpen && (
         <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm lg:hidden">
           <div className="absolute inset-y-0 right-0 w-full max-w-sm border-l border-border bg-background shadow-xl">
-            <QuestionNavigator
-              questions={questions}
-              currentQuestionIndex={session.currentQuestionIndex}
-              answeredQuestionIds={answeredIds}
-              flaggedQuestionIds={flaggedIds}
-              onSelectQuestion={(index) => {
-                setCurrentQuestion(sessionKey, index);
-                setMobileNavigatorOpen(false);
-              }}
-              onClose={() => setMobileNavigatorOpen(false)}
-            />
+            <div className="flex items-center justify-between border-b border-border px-4 py-3">
+              <p className="text-sm font-semibold">Questions</p>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setMobileNavigatorOpen(false)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="p-4">
+              <QuestionNavigator
+                total={questions.length}
+                current={session.currentQuestionIndex}
+                answeredIds={answeredIds}
+                flaggedIds={flaggedIds}
+                questionIds={questions.map((q) => q.id)}
+                onSelect={(index) => {
+                  setCurrentQuestion(sessionKey, index);
+                  setMobileNavigatorOpen(false);
+                }}
+              />
+            </div>
           </div>
         </div>
       )}
@@ -357,9 +370,7 @@ export function ExamPortalClient({
         open={submitDialogOpen}
         onOpenChange={setSubmitDialogOpen}
         answeredCount={answeredCount}
-        totalQuestions={questions.length}
-        flaggedCount={flaggedIds.size}
-        isSubmitting={autoSubmitting}
+        totalCount={questions.length}
         onConfirm={handleSubmit}
       />
     </div>

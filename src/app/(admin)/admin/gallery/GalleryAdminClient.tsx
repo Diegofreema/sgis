@@ -15,7 +15,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { createGalleryItems, deleteGalleryItem } from "@/server/actions/admin.actions";
+import { createGalleryItemRecords, deleteGalleryItem } from "@/server/actions/admin.actions";
+import { uploadGalleryImage, deleteStorageFile } from "@/lib/storage";
 import type { GalleryItem } from "@/db/schema/gallery";
 
 type Props = {
@@ -82,22 +83,72 @@ export function GalleryAdminClient({
     }
 
     setSaving(true);
-    const formData = new FormData();
-    for (const file of files) formData.append("images", file);
 
-    const result = await createGalleryItems(formData);
+    const results = await Promise.allSettled(
+      files.map((file, idx) =>
+        uploadGalleryImage(file).then((r) => ({ ...r, _idx: idx }))
+      )
+    );
+
+    const succeeded = results
+      .filter(
+        (r): r is PromiseFulfilledResult<Awaited<ReturnType<typeof uploadGalleryImage>> & { _idx: number }> =>
+          r.status === "fulfilled"
+      )
+      .map((r) => r.value);
+
+    const failedCount = results.length - succeeded.length;
+
+    if (failedCount > 0) {
+      const uploadedPaths = succeeded.map((r) => r.path);
+      for (const path of uploadedPaths) {
+        try {
+          await deleteStorageFile("gallery", path);
+        } catch {}
+      }
+
+      setSaving(false);
+      toast.error(
+        failedCount === results.length
+          ? "Upload failed for all images."
+          : `${failedCount} of ${results.length} images failed to upload.`
+      );
+      return;
+    }
+
+    const records = succeeded.map((r) => {
+      const file = files[r._idx];
+      const title =
+        file.name
+          .replace(/\.[^.]+$/, "")
+          .replace(/[-_]+/g, " ")
+          .trim() || "Gallery Photo";
+      return { imageUrl: r.url, title };
+    });
+
+    const dbResult = await createGalleryItemRecords(records);
+
+    if (!dbResult.success) {
+      const uploadedPaths = succeeded.map((r) => r.path);
+      for (const path of uploadedPaths) {
+        try {
+          await deleteStorageFile("gallery", path);
+        } catch {}
+      }
+    }
+
     setSaving(false);
-    if (result.success) {
+    if (dbResult.success) {
       toast.success(
-        result.data.items.length === 1
+        dbResult.data.items.length === 1
           ? "Gallery item added."
-          : `${result.data.items.length} gallery items added.`
+          : `${dbResult.data.items.length} gallery items added.`
       );
       setDialogOpen(false);
       resetForm();
       router.refresh();
     } else {
-      toast.error(result.error ?? "Failed to add item.");
+      toast.error(dbResult.error ?? "Failed to add item.");
     }
   }
 

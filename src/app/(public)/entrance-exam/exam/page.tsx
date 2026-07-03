@@ -175,12 +175,21 @@ export default async function PublicExamPreviewPage({ searchParams }: Props) {
               />
             )}
 
-            {(discovery.state === 'preview_open' ||
-              discovery.state === 'verification_open') && (
+            {discovery.state === 'preview_open' && (
               <ExamPreviewCountdown
                 label="Exam starts in"
                 targetDate={discovery.period.examStartDate}
+                refreshAt={discovery.verificationOpensAt}
                 caption="Stay on this page. Verification opens 5 minutes before the exam starts."
+              />
+            )}
+
+            {discovery.state === 'verification_open' && (
+              <ExamPreviewCountdown
+                label="Exam starts in"
+                targetDate={discovery.period.examStartDate}
+                refreshAt={discovery.period.examStartDate}
+                caption="Verification is now open. The exam begins shortly."
               />
             )}
 
@@ -188,6 +197,7 @@ export default async function PublicExamPreviewPage({ searchParams }: Props) {
               <ExamPreviewCountdown
                 label="Exam closes in"
                 targetDate={discovery.period.examEndDate}
+                refreshAt={discovery.period.examEndDate}
                 caption="The exam timer starts only after you begin your attempt."
               />
             )}

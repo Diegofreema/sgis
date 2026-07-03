@@ -7,14 +7,31 @@ import { EXAM_TIMER_WARNING_THRESHOLD } from "@/constants/exam";
 export function useExamTimer(onExpire: () => void) {
   const { timerSeconds, tickTimer, setTimer } = useExamStore();
   const onExpireRef = useRef(onExpire);
-  onExpireRef.current = onExpire;
+  const startedRef = useRef(false);
+  const previousSecondsRef = useRef<number | null>(null);
+  const expiredRef = useRef(false);
 
-  // Tick every second
   useEffect(() => {
-    if (timerSeconds <= 0) {
+    onExpireRef.current = onExpire;
+  });
+
+  useEffect(() => {
+    if (!startedRef.current) return;
+
+    if (
+      previousSecondsRef.current != null &&
+      previousSecondsRef.current > 0 &&
+      timerSeconds <= 0 &&
+      !expiredRef.current
+    ) {
+      expiredRef.current = true;
+      previousSecondsRef.current = timerSeconds;
       onExpireRef.current();
       return;
     }
+
+    previousSecondsRef.current = timerSeconds;
+    if (timerSeconds <= 0) return;
 
     const interval = setInterval(() => {
       tickTimer();
@@ -25,6 +42,9 @@ export function useExamTimer(onExpire: () => void) {
 
   const initTimer = useCallback(
     (seconds: number) => {
+      startedRef.current = true;
+      previousSecondsRef.current = null;
+      expiredRef.current = false;
       setTimer(seconds);
     },
     [setTimer]

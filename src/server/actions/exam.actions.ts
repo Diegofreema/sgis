@@ -685,7 +685,7 @@ export async function submitExam(
     attempt.status === EXAM_ATTEMPT_STATUS.SUBMITTED ||
     attempt.status === EXAM_ATTEMPT_STATUS.GRADED
   ) {
-    return { success: false, error: "Exam already submitted" };
+    return { success: true, data: undefined };
   }
 
   const parsedPayload = answersPayload ? submitAnswersSchema.safeParse(answersPayload) : null;

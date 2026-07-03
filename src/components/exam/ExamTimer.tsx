@@ -4,7 +4,6 @@ import { useEffect } from "react";
 import { Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useExamTimer } from "@/hooks/use-exam-timer";
-import { EXAM_TIMER_WARNING_THRESHOLD } from "@/constants/exam";
 
 type ExamTimerProps = {
   totalSeconds: number;

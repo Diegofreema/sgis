@@ -636,3 +636,149 @@ export async function getQuestionsByIds(questionIds: string[]) {
   if (!db || questionIds.length === 0) return [];
   return db.select().from(questions).where(inArray(questions.id, questionIds));
 }
+
+export type ExamResultAnswer = {
+  questionId: string;
+  questionText: string;
+  options: { id: string; text: string }[];
+  selectedOption: string | null;
+  isCorrect: boolean | null;
+  marksAwarded: string | null;
+  explanation: string | null;
+  marks: string;
+};
+
+export type ExamResult = {
+  attempt: typeof examAttempts.$inferSelect;
+  exam: typeof exams.$inferSelect;
+  answers: ExamResultAnswer[];
+};
+
+export async function getExamResult(attemptId: string): Promise<ExamResult | null> {
+  if (!db) return null;
+
+  const row = await db
+    .select({ attempt: examAttempts, exam: exams })
+    .from(examAttempts)
+    .innerJoin(exams, eq(examAttempts.examId, exams.id))
+    .where(and(eq(examAttempts.id, attemptId)))
+    .limit(1)
+    .then((rows) => rows[0] ?? null);
+
+  if (!row) return null;
+
+  const answersQuery = await db
+    .select({
+      answer: examAnswers,
+      question: questions,
+    })
+    .from(examAnswers)
+    .innerJoin(questions, eq(examAnswers.questionId, questions.id))
+    .where(eq(examAnswers.attemptId, attemptId));
+
+  const sortedAnswers = sortQuestions(
+    answersQuery.map(({ answer, question }) => ({
+      id: question.id,
+      selectedOption: answer.selectedOption,
+      isCorrect: answer.isCorrect,
+      marksAwarded: answer.marksAwarded,
+      questionText: question.questionText,
+      options: question.options,
+      explanation: question.explanation,
+      marks: question.marks,
+    })),
+    row.attempt.questionOrder
+  );
+
+  return {
+    attempt: row.attempt,
+    exam: row.exam,
+    answers: sortedAnswers.map((item) => ({
+      questionId: item.id,
+      questionText: item.questionText,
+      options: item.options,
+      selectedOption: item.selectedOption,
+      isCorrect: item.isCorrect,
+      marksAwarded: item.marksAwarded,
+      explanation: item.explanation,
+      marks: item.marks,
+    })),
+  };
+}
+
+export type ExamResultRow = {
+  id: string;
+  applicationCode: string;
+  applicantName: string;
+  applicantEmail: string;
+  status: typeof examAttempts.$inferSelect["status"];
+  score: string | null;
+  totalMarks: number | null;
+  passed: boolean | null;
+  submittedAt: Date | null;
+  startedAt: Date;
+};
+
+export type ExamResultPage = {
+  rows: ExamResultRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
+export async function listExamResults(
+  examId: string,
+  input: { page?: number; pageSize?: number }
+): Promise<ExamResultPage> {
+  const pageSize = Math.max(1, input.pageSize ?? 20);
+  const page = Math.max(1, input.page ?? 1);
+
+  if (!db) return { rows: [], total: 0, page, pageSize };
+
+  const where = eq(examAttempts.examId, examId);
+
+  const [rows, totalRows] = await Promise.all([
+    db
+      .select({
+        id: examAttempts.id,
+        status: examAttempts.status,
+        score: examAttempts.score,
+        totalMarks: examAttempts.totalMarks,
+        passed: examAttempts.passed,
+        submittedAt: examAttempts.submittedAt,
+        startedAt: examAttempts.startedAt,
+        applicationCode: applications.applicationCode,
+        applicantFirstName: applications.firstName,
+        applicantLastName: applications.lastName,
+        applicantEmail: applications.email,
+      })
+      .from(examAttempts)
+      .innerJoin(applications, eq(examAttempts.applicationId, applications.id))
+      .where(where)
+      .orderBy(desc(examAttempts.submittedAt), desc(examAttempts.createdAt))
+      .limit(pageSize)
+      .offset((page - 1) * pageSize),
+    db
+      .select({ count: count() })
+      .from(examAttempts)
+      .where(where),
+  ]);
+
+  return {
+    rows: rows.map((r) => ({
+      id: r.id,
+      applicationCode: r.applicationCode,
+      applicantName: `${r.applicantFirstName} ${r.applicantLastName}`,
+      applicantEmail: r.applicantEmail,
+      status: r.status,
+      score: r.score,
+      totalMarks: r.totalMarks,
+      passed: r.passed,
+      submittedAt: r.submittedAt,
+      startedAt: r.startedAt,
+    })),
+    total: Number(totalRows[0]?.count ?? 0),
+    page,
+    pageSize,
+  };
+}

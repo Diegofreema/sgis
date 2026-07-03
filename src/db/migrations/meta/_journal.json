@@ -78,6 +78,20 @@
       "when": 1783108800000,
       "tag": "0010_admin_only_roles",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1783180800000,
+      "tag": "0011_secure_remaining_public_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1783267200000,
+      "tag": "0012_gallery_storage_policy",
+      "breakpoints": true
     }
   ]
 }

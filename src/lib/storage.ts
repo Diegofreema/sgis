@@ -53,14 +53,14 @@ export async function uploadAvatar(
 
 // ─── Gallery ─────────────────────────────────────────────────────────────────
 
-export async function uploadGalleryImage(
-  filename: string,
-  file: File
-): Promise<UploadResult> {
+export async function uploadGalleryImage(file: File): Promise<UploadResult> {
   const supabase = getClient();
-  const ext = file.name.split(".").pop() ?? "jpg";
-  const safeFilename = filename.replace(/[^a-z0-9-_]/gi, "-").toLowerCase();
-  const path = `${Date.now()}-${safeFilename}.${ext}`;
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
+  const safeName = file.name
+    .replace(/\.[^.]+$/, "")
+    .replace(/[^a-z0-9]+/gi, "-")
+    .toLowerCase();
+  const path = `gallery/${Date.now()}-${crypto.randomUUID()}-${safeName}.${ext}`;
 
   const { error } = await supabase.storage
     .from(BUCKET_GALLERY)

@@ -19,62 +19,7 @@ type ActionResult<T = void> =
 const MAX_GALLERY_IMAGE_BYTES = 1024 * 1024;
 const GALLERY_IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
-type DetectedGalleryImageType =
-  | { ext: "jpg"; mime: "image/jpeg" }
-  | { ext: "png"; mime: "image/png" }
-  | { ext: "webp"; mime: "image/webp" };
-
 let galleryBucketChecked = false;
-
-function galleryFileNameTitle(filename: string) {
-  const cleaned = filename
-    .replace(/\.[^.]+$/, "")
-    .replace(/[-_]+/g, " ")
-    .trim();
-
-  return cleaned || "Gallery Photo";
-}
-
-function detectGalleryImageType(bytes: Uint8Array): DetectedGalleryImageType | null {
-  if (
-    bytes.length >= 8 &&
-    bytes[0] === 0x89 &&
-    bytes[1] === 0x50 &&
-    bytes[2] === 0x4e &&
-    bytes[3] === 0x47 &&
-    bytes[4] === 0x0d &&
-    bytes[5] === 0x0a &&
-    bytes[6] === 0x1a &&
-    bytes[7] === 0x0a
-  ) {
-    return { ext: "png", mime: "image/png" };
-  }
-
-  if (
-    bytes.length >= 3 &&
-    bytes[0] === 0xff &&
-    bytes[1] === 0xd8 &&
-    bytes[2] === 0xff
-  ) {
-    return { ext: "jpg", mime: "image/jpeg" };
-  }
-
-  if (
-    bytes.length >= 12 &&
-    bytes[0] === 0x52 &&
-    bytes[1] === 0x49 &&
-    bytes[2] === 0x46 &&
-    bytes[3] === 0x46 &&
-    bytes[8] === 0x57 &&
-    bytes[9] === 0x45 &&
-    bytes[10] === 0x42 &&
-    bytes[11] === 0x50
-  ) {
-    return { ext: "webp", mime: "image/webp" };
-  }
-
-  return null;
-}
 
 function getGalleryBucketName() {
   return process.env.NEXT_PUBLIC_STORAGE_BUCKET_GALLERY ?? "gallery";
@@ -123,29 +68,6 @@ async function ensureGalleryBucket() {
   }
 
   galleryBucketChecked = true;
-}
-
-async function uploadGalleryImage(input: {
-  bytes: Uint8Array;
-  detectedType: DetectedGalleryImageType;
-  filename: string;
-}) {
-  await ensureGalleryBucket();
-
-  const supabase = createAdminClient();
-  const bucket = getGalleryBucketName();
-  const path = `gallery/${Date.now()}-${crypto.randomUUID()}-${galleryFileNameTitle(input.filename)
-    .replace(/[^a-z0-9]+/gi, "-")
-    .toLowerCase()}.${input.detectedType.ext}`;
-
-  const { error } = await supabase.storage.from(bucket).upload(path, input.bytes, {
-    contentType: input.detectedType.mime,
-  });
-
-  if (error) throw new Error(error.message);
-
-  const { data } = supabase.storage.from(bucket).getPublicUrl(path);
-  return { path, url: data.publicUrl };
 }
 
 function revalidateGalleryPaths() {
@@ -709,16 +631,26 @@ export async function deleteQuestion(questionId: string): Promise<ActionResult> 
 
 // ─── Gallery ─────────────────────────────────────────────────────────────────
 
-export async function createGalleryItems(
-  formData: FormData
+export async function createGalleryItemRecords(
+  records: { imageUrl: string; title: string }[]
 ): Promise<ActionResult<{ items: typeof galleryItems.$inferSelect[] }>> {
   const admin = await requireRole(["admin"]);
   if (!db) return { success: false, error: "Service unavailable" };
+  if (records.length === 0) return { success: false, error: "No records to create." };
+  if (records.length > 50) return { success: false, error: "Upload 50 images or fewer at a time." };
 
-  const files = formData
-    .getAll("images")
-    .filter((value): value is File => value instanceof File && value.size > 0);
-  if (files.length === 0) return { success: false, error: "Select at least one image." };
+  const storageOrigin = process.env.NEXT_PUBLIC_SUPABASE_URL
+    ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${getGalleryBucketName()}/`
+    : null;
+
+  for (const record of records) {
+    if (!record.title.trim() || record.title.length > 255) {
+      return { success: false, error: "Each image must have a title (1–255 characters)." };
+    }
+    if (!record.imageUrl || (storageOrigin && !record.imageUrl.startsWith(storageOrigin))) {
+      return { success: false, error: "Invalid image URL." };
+    }
+  }
 
   const baseSortOrder = await db
     .select({ sortOrder: galleryItems.sortOrder })
@@ -727,74 +659,34 @@ export async function createGalleryItems(
     .limit(1)
     .then((rows) => rows[0]?.sortOrder ?? -1);
 
-  const uploads = [];
-  for (const file of files) {
-    if (file.size > MAX_GALLERY_IMAGE_BYTES) {
-      return { success: false, error: `${file.name} must be 1MB or smaller.` };
-    }
-
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    const detectedType = detectGalleryImageType(bytes);
-    if (!detectedType || !GALLERY_IMAGE_MIME_TYPES.has(detectedType.mime)) {
-      return {
-        success: false,
-        error: `${file.name} must be a real JPG, PNG, or WebP image.`,
-      };
-    }
-
-    uploads.push({
-      file,
-      bytes,
-      detectedType,
-    });
-  }
-
-  const createdItems = [];
-  const createdItemIds: string[] = [];
-  const uploadedPaths: string[] = [];
-  try {
-    for (const [index, upload] of uploads.entries()) {
-      const image = await uploadGalleryImage({
-        bytes: upload.bytes,
-        detectedType: upload.detectedType,
-        filename: upload.file.name,
-      });
-      uploadedPaths.push(image.path);
-
-      const [item] = await db
-        .insert(galleryItems)
-        .values({
-          imageUrl: image.url,
-          title: galleryFileNameTitle(upload.file.name),
-          description: null,
-          category: null,
-          visibility: "public",
-          sortOrder: baseSortOrder + index + 1,
-          createdBy: admin.id,
-        })
-        .returning();
-
-      createdItems.push(item);
-      createdItemIds.push(item.id);
-    }
-  } catch (error) {
-    if (createdItemIds.length > 0) {
-      try {
-        await db.delete(galleryItems).where(inArray(galleryItems.id, createdItemIds));
-      } catch {}
-    }
-    if (uploadedPaths.length > 0) {
-      try {
-        const supabase = createAdminClient();
-        await supabase.storage.from(getGalleryBucketName()).remove(uploadedPaths);
-      } catch {}
-    }
-    const message = error instanceof Error ? error.message : "Gallery upload failed.";
-    return { success: false, error: message };
-  }
+  const items = await db
+    .insert(galleryItems)
+    .values(
+      records.map((record, index) => ({
+        imageUrl: record.imageUrl,
+        title: record.title.trim(),
+        description: null,
+        category: null,
+        visibility: "public" as const,
+        sortOrder: baseSortOrder + index + 1,
+        createdBy: admin.id,
+      }))
+    )
+    .returning();
 
   revalidateGalleryPaths();
-  return { success: true, data: { items: createdItems } };
+  return { success: true, data: { items } };
+}
+
+// DB rows are deleted before storage files. If storage deletion fails, the
+// gallery row is already gone and the file is orphaned. This is intentional:
+// broken image references in the UI are worse than orphaned storage objects.
+async function deleteGalleryStorageFiles(paths: string[]) {
+  if (paths.length === 0) return;
+  await ensureGalleryBucket();
+  const supabase = createAdminClient();
+  const { error } = await supabase.storage.from(getGalleryBucketName()).remove(paths);
+  if (error) throw new Error(error.message);
 }
 
 export async function deleteGalleryItem(itemId: string): Promise<ActionResult> {
@@ -809,12 +701,12 @@ export async function deleteGalleryItem(itemId: string): Promise<ActionResult> {
     .then((rows) => rows[0] ?? null);
 
   const path = existing ? getGalleryObjectPath(existing.imageUrl) : null;
+
+  await db.delete(galleryItems).where(eq(galleryItems.id, itemId));
+
   if (path) {
     try {
-      await ensureGalleryBucket();
-      const supabase = createAdminClient();
-      const { error } = await supabase.storage.from(getGalleryBucketName()).remove([path]);
-      if (error) throw new Error(error.message);
+      await deleteGalleryStorageFiles([path]);
     } catch (error) {
       return {
         success: false,
@@ -823,10 +715,54 @@ export async function deleteGalleryItem(itemId: string): Promise<ActionResult> {
     }
   }
 
-  await db.delete(galleryItems).where(eq(galleryItems.id, itemId));
   revalidateGalleryPaths();
-
   return { success: true, data: undefined };
+}
+
+export async function deleteGalleryItems(itemIds: string[]): Promise<ActionResult<{ deleted: number }>> {
+  await requireRole(["admin"]);
+  if (!db) return { success: false, error: "Service unavailable" };
+  if (itemIds.length === 0) return { success: true, data: { deleted: 0 } };
+
+  const existing = await db
+    .select({ id: galleryItems.id, imageUrl: galleryItems.imageUrl })
+    .from(galleryItems)
+    .where(inArray(galleryItems.id, itemIds));
+
+  if (existing.length === 0) return { success: true, data: { deleted: 0 } };
+
+  await db.delete(galleryItems).where(inArray(galleryItems.id, itemIds));
+
+  const paths = existing
+    .map((item) => getGalleryObjectPath(item.imageUrl))
+    .filter((p): p is string => p !== null);
+
+  if (paths.length > 0) {
+    try {
+      await deleteGalleryStorageFiles(paths);
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to remove image files.",
+      };
+    }
+  }
+
+  revalidateGalleryPaths();
+  return { success: true, data: { deleted: existing.length } };
+}
+
+export async function deleteAllGalleryItems(): Promise<ActionResult<{ deleted: number }>> {
+  await requireRole(["admin"]);
+  if (!db) return { success: false, error: "Service unavailable" };
+
+  const all = await db
+    .select({ id: galleryItems.id })
+    .from(galleryItems);
+
+  if (all.length === 0) return { success: true, data: { deleted: 0 } };
+
+  return deleteGalleryItems(all.map((row) => row.id));
 }
 
 // ─── Announcements ────────────────────────────────────────────────────────────

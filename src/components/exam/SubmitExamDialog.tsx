@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { MouseEvent } from "react";
 import { Loader2, AlertTriangle } from "lucide-react";
 import {
   AlertDialog,
@@ -12,12 +13,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
 
 type SubmitExamDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onConfirm: () => Promise<void>;
+  onConfirm: () => Promise<boolean>;
   answeredCount: number;
   totalCount: number;
 };
@@ -32,10 +32,11 @@ export function SubmitExamDialog({
   const [submitting, setSubmitting] = useState(false);
   const unansweredCount = totalCount - answeredCount;
 
-  async function handleConfirm() {
+  async function handleConfirm(event: MouseEvent<HTMLButtonElement>) {
+    event.preventDefault();
     setSubmitting(true);
-    await onConfirm();
-    setSubmitting(false);
+    const submitted = await onConfirm();
+    if (!submitted) setSubmitting(false);
   }
 
   return (

@@ -6,10 +6,13 @@ import { connection } from "next/server";
 import {
   AlertCircle,
   ArrowRight,
+  Award,
   CheckCircle2,
   Clock,
+  FileText,
   Landmark,
   Search,
+  XCircle,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -236,6 +239,19 @@ export default async function EntranceExamPage({ searchParams }: Props) {
                       Secure exam access becomes available after admin approval.
                     </div>
                   )}
+
+                  {trackedAccess.attempt?.status === "graded" &&
+                    trackedAccess.attempt.score != null &&
+                    trackedAccess.attempt.passed != null && (
+                      <ExamResultSummary
+                        applicationCode={trackedAccess.application.applicationCode}
+                        attemptId={trackedAccess.attempt.id}
+                        score={Number(trackedAccess.attempt.score)}
+                        totalMarks={trackedAccess.attempt.totalMarks ?? 100}
+                        passingScore={trackedAccess.exam?.passingScore ?? 50}
+                        passed={trackedAccess.attempt.passed}
+                      />
+                    )}
                 </div>
               )}
             </CardContent>
@@ -557,4 +573,56 @@ function sortPublicExamSessions(periods: Awaited<ReturnType<typeof getAllApplica
         new Date(right.examStartDate).getTime() - new Date(left.examStartDate).getTime()
       );
     });
+}
+
+function ExamResultSummary({
+  applicationCode,
+  attemptId,
+  score,
+  totalMarks,
+  passingScore,
+  passed,
+}: {
+  applicationCode: string;
+  attemptId: string;
+  score: number;
+  totalMarks: number;
+  passingScore: number;
+  passed: boolean;
+}) {
+  const percentage = totalMarks > 0 ? Math.round((score / totalMarks) * 100) : 0;
+
+  return (
+    <div className="rounded-lg border border-muted-foreground/20 bg-muted/10 p-4 print:hidden">
+      <div className="flex items-start justify-between gap-3">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            {passed ? (
+              <Award className="h-5 w-5 text-emerald-500" />
+            ) : (
+              <XCircle className="h-5 w-5 text-red-400" />
+            )}
+            <p className="font-medium text-foreground">Exam result</p>
+            <StatusBadge status={passed ? "approved" : "rejected"} />
+          </div>
+          <div className="flex items-center gap-4 text-sm">
+            <span>
+              <span className="font-semibold tabular-nums">{score}</span>
+              <span className="text-muted-foreground">/{totalMarks}</span>
+            </span>
+            <span className="tabular-nums font-semibold">{percentage}%</span>
+            <span className="text-muted-foreground">(passing: {passingScore}%)</span>
+          </div>
+        </div>
+        <Button asChild size="sm" variant="outline" className="gap-1.5">
+          <Link
+            href={`/entrance-exam/exam/${attemptId}/result`}
+          >
+            <FileText className="h-4 w-4" />
+            View full result
+          </Link>
+        </Button>
+      </div>
+    </div>
+  );
 }

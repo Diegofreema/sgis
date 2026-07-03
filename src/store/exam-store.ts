@@ -120,7 +120,8 @@ export const useExamStore = create<ExamStore>()(
           };
         }),
 
-      markSyncState: (syncState) => set({ syncState }),
+      markSyncState: (syncState) =>
+        set((state) => (state.syncState === syncState ? state : { syncState })),
 
       markAnswerSynced: (sessionKey, questionId) =>
         set((state) => {
@@ -153,6 +154,7 @@ export const useExamStore = create<ExamStore>()(
           delete nextSessions[sessionKey];
           return {
             sessions: nextSessions,
+            timerSeconds: 0,
             syncState: "saved",
             activeSessionKey:
               state.activeSessionKey === sessionKey ? null : state.activeSessionKey,

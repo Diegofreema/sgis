@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 function formatCountdown(milliseconds: number) {
   const totalSeconds = Math.max(0, Math.floor(milliseconds / 1000));
@@ -20,21 +21,34 @@ export function ExamPreviewCountdown({
   label,
   targetDate,
   caption,
+  refreshAt,
 }: {
   label: string;
   targetDate: string | Date;
   caption: string;
+  refreshAt?: string | Date | null;
 }) {
+  const router = useRouter();
   const target = new Date(targetDate).getTime();
-  const [now, setNow] = useState(Date.now());
+  const refreshTarget = refreshAt ? new Date(refreshAt).getTime() : null;
+  const refreshedRef = useRef(false);
+  const [now, setNow] = useState(0);
 
   useEffect(() => {
-    const timer = window.setInterval(() => {
-      setNow(Date.now());
-    }, 1000);
+    const tick = () => {
+      const current = Date.now();
+      setNow(current);
+      if (refreshTarget && current >= refreshTarget && !refreshedRef.current) {
+        refreshedRef.current = true;
+        router.refresh();
+      }
+    };
 
+    tick();
+
+    const timer = window.setInterval(tick, 1000);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [refreshTarget, router]);
 
   return (
     <div className="rounded-2xl border bg-background p-5">
