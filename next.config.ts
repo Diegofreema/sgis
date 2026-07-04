@@ -7,6 +7,11 @@ const nextConfig: NextConfig = {
    * Data fetches are dynamic by default; opt-in to caching with `'use cache'`.
    */
   cacheComponents: true,
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "2mb",
+    },
+  },
 
   images: {
     remotePatterns: [

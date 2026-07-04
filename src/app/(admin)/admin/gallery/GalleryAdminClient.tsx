@@ -15,8 +15,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { createGalleryItemRecords, deleteGalleryItem } from "@/server/actions/admin.actions";
-import { uploadGalleryImage, deleteStorageFile } from "@/lib/storage";
+import {
+  createGalleryItemRecords,
+  deleteGalleryItem,
+  deleteGalleryUpload,
+  uploadGalleryImage,
+} from "@/server/actions/admin.actions";
 import type { GalleryItem } from "@/db/schema/gallery";
 
 type Props = {
@@ -85,14 +89,20 @@ export function GalleryAdminClient({
     setSaving(true);
 
     const results = await Promise.allSettled(
-      files.map((file, idx) =>
-        uploadGalleryImage(file).then((r) => ({ ...r, _idx: idx }))
-      )
+      files.map(async (file, idx) => {
+        const formData = new FormData();
+        formData.set("image", file);
+        const result = await uploadGalleryImage(formData);
+        if (!result.success) {
+          throw new Error(result.error ?? `Could not upload ${file.name}.`);
+        }
+        return { ...result.data, _idx: idx };
+      })
     );
 
     const succeeded = results
       .filter(
-        (r): r is PromiseFulfilledResult<Awaited<ReturnType<typeof uploadGalleryImage>> & { _idx: number }> =>
+        (r): r is PromiseFulfilledResult<{ path: string; url: string; _idx: number }> =>
           r.status === "fulfilled"
       )
       .map((r) => r.value);
@@ -103,7 +113,7 @@ export function GalleryAdminClient({
       const uploadedPaths = succeeded.map((r) => r.path);
       for (const path of uploadedPaths) {
         try {
-          await deleteStorageFile("gallery", path);
+          await deleteGalleryUpload(path);
         } catch {}
       }
 
@@ -132,7 +142,7 @@ export function GalleryAdminClient({
       const uploadedPaths = succeeded.map((r) => r.path);
       for (const path of uploadedPaths) {
         try {
-          await deleteStorageFile("gallery", path);
+          await deleteGalleryUpload(path);
         } catch {}
       }
     }

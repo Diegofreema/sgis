@@ -19,6 +19,11 @@ type ActionResult<T = void> =
 const MAX_GALLERY_IMAGE_BYTES = 1024 * 1024;
 const GALLERY_IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
+type GalleryUploadType =
+  | { ext: "jpg"; mime: "image/jpeg" }
+  | { ext: "png"; mime: "image/png" }
+  | { ext: "webp"; mime: "image/webp" };
+
 let galleryBucketChecked = false;
 
 function getGalleryBucketName() {
@@ -34,6 +39,52 @@ function getGalleryObjectPath(imageUrl: string) {
   } catch {
     return null;
   }
+}
+
+function fileValue(formData: FormData, key: string) {
+  const value = formData.get(key);
+  return value instanceof File && value.size > 0 ? value : null;
+}
+
+function detectGalleryImageType(bytes: Uint8Array): GalleryUploadType | null {
+  if (
+    bytes.length >= 8 &&
+    bytes[0] === 0x89 &&
+    bytes[1] === 0x50 &&
+    bytes[2] === 0x4e &&
+    bytes[3] === 0x47 &&
+    bytes[4] === 0x0d &&
+    bytes[5] === 0x0a &&
+    bytes[6] === 0x1a &&
+    bytes[7] === 0x0a
+  ) {
+    return { ext: "png", mime: "image/png" };
+  }
+
+  if (
+    bytes.length >= 3 &&
+    bytes[0] === 0xff &&
+    bytes[1] === 0xd8 &&
+    bytes[2] === 0xff
+  ) {
+    return { ext: "jpg", mime: "image/jpeg" };
+  }
+
+  if (
+    bytes.length >= 12 &&
+    bytes[0] === 0x52 &&
+    bytes[1] === 0x49 &&
+    bytes[2] === 0x46 &&
+    bytes[3] === 0x46 &&
+    bytes[8] === 0x57 &&
+    bytes[9] === 0x45 &&
+    bytes[10] === 0x42 &&
+    bytes[11] === 0x50
+  ) {
+    return { ext: "webp", mime: "image/webp" };
+  }
+
+  return null;
 }
 
 async function ensureGalleryBucket() {
@@ -687,6 +738,70 @@ async function deleteGalleryStorageFiles(paths: string[]) {
   const supabase = createAdminClient();
   const { error } = await supabase.storage.from(getGalleryBucketName()).remove(paths);
   if (error) throw new Error(error.message);
+}
+
+export async function uploadGalleryImage(
+  formData: FormData
+): Promise<ActionResult<{ path: string; url: string }>> {
+  await requireRole(["admin"]);
+
+  const file = fileValue(formData, "image");
+  if (!file) {
+    return { success: false, error: "Select an image to upload." };
+  }
+
+  if (file.size > MAX_GALLERY_IMAGE_BYTES) {
+    return { success: false, error: `${file.name} is bigger than 1MB.` };
+  }
+
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const detectedType = detectGalleryImageType(bytes);
+  if (!detectedType) {
+    return { success: false, error: `${file.name} must be JPG, PNG, or WebP.` };
+  }
+
+  const safeName = file.name
+    .replace(/\.[^.]+$/, "")
+    .replace(/[^a-z0-9]+/gi, "-")
+    .toLowerCase();
+  const path = `gallery/${Date.now()}-${crypto.randomUUID()}-${safeName}.${detectedType.ext}`;
+
+  try {
+    await ensureGalleryBucket();
+    const supabase = createAdminClient();
+    const { error } = await supabase.storage
+      .from(getGalleryBucketName())
+      .upload(path, bytes, { contentType: detectedType.mime });
+
+    if (error) return { success: false, error: error.message };
+
+    const { data } = supabase.storage.from(getGalleryBucketName()).getPublicUrl(path);
+    return { success: true, data: { path, url: data.publicUrl } };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Upload failed.",
+    };
+  }
+}
+
+export async function deleteGalleryUpload(path: string): Promise<ActionResult> {
+  await requireRole(["admin"]);
+
+  const normalizedPath = path.trim();
+  if (!normalizedPath.startsWith("gallery/")) {
+    return { success: false, error: "Invalid gallery image path." };
+  }
+
+  try {
+    await deleteGalleryStorageFiles([normalizedPath]);
+    return { success: true, data: undefined };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to remove image file.",
+    };
+  }
 }
 
 export async function deleteGalleryItem(itemId: string): Promise<ActionResult> {
