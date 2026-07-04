@@ -50,7 +50,10 @@ function createDb() {
     // Return a mock in environments without a DB (e.g., during static build)
     return null;
   }
-  const client = postgres(connectionString, { prepare: false });
+  const client = postgres(connectionString, {
+    prepare: false,
+    max: 1,
+  });
   return drizzle(client, { schema });
 }
 

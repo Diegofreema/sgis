@@ -4,9 +4,28 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useDropzone } from "react-dropzone";
 import { toast } from "sonner";
-import { Plus, Trash2, ImageIcon, Loader2, UploadCloud, X } from "lucide-react";
+import {
+  CheckSquare,
+  ImageIcon,
+  Loader2,
+  Plus,
+  Square,
+  Trash2,
+  UploadCloud,
+  X,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Dialog,
   DialogContent,
@@ -17,11 +36,19 @@ import {
 } from "@/components/ui/dialog";
 import {
   createGalleryItemRecords,
+  deleteAllGalleryItems,
   deleteGalleryItem,
+  deleteGalleryItems,
   deleteGalleryUpload,
   uploadGalleryImage,
 } from "@/server/actions/admin.actions";
 import type { GalleryItem } from "@/db/schema/gallery";
+
+type DeleteTarget =
+  | { type: "single"; id: string; title: string }
+  | { type: "selected" }
+  | { type: "all" }
+  | null;
 
 type Props = {
   initialItems: GalleryItem[];
@@ -43,8 +70,13 @@ export function GalleryAdminClient({
   const router = useRouter();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [files, setFiles] = useState<File[]>([]);
+  const itemIds = initialItems.map((item) => item.id);
+  const allPageSelected = itemIds.length > 0 && itemIds.every((id) => selected.has(id));
+  const selectedCount = selected.size;
 
   const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     accept: {
@@ -78,6 +110,26 @@ export function GalleryAdminClient({
 
   function resetForm() {
     setFiles([]);
+  }
+
+  function toggleSelect(id: string) {
+    setSelected((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectPage() {
+    setSelected((current) => {
+      if (allPageSelected) {
+        const next = new Set(current);
+        itemIds.forEach((id) => next.delete(id));
+        return next;
+      }
+      return new Set([...current, ...itemIds]);
+    });
   }
 
   async function handleAdd() {
@@ -162,17 +214,42 @@ export function GalleryAdminClient({
     }
   }
 
-  async function handleDelete(id: string) {
-    setDeletingId(id);
-    const result = await deleteGalleryItem(id);
-    setDeletingId(null);
+  async function handleConfirmDelete() {
+    if (!deleteTarget) return;
+
+    setDeleting(true);
+    const result =
+      deleteTarget.type === "all"
+        ? await deleteAllGalleryItems()
+        : deleteTarget.type === "selected"
+        ? await deleteGalleryItems(Array.from(selected))
+        : await deleteGalleryItem(deleteTarget.id);
+    setDeleting(false);
+
     if (result.success) {
-      toast.success("Item removed.");
+      const deleted =
+        "data" in result && result.data && "deleted" in result.data ? result.data.deleted : 1;
+      toast.success(deleted === 1 ? "Item removed." : `${deleted} items removed.`);
+      setSelected(new Set());
+      setDeleteTarget(null);
       router.refresh();
     } else {
       toast.error(result.error ?? "Failed to delete item.");
     }
   }
+
+  const deleteDescription =
+    deleteTarget?.type === "all"
+      ? `This will permanently delete all ${totalItems} gallery image${
+          totalItems !== 1 ? "s" : ""
+        }. This cannot be undone.`
+      : deleteTarget?.type === "selected"
+      ? `This will permanently delete ${selectedCount} selected image${
+          selectedCount !== 1 ? "s" : ""
+        }. This cannot be undone.`
+      : deleteTarget?.type === "single"
+      ? `This will permanently delete "${deleteTarget.title}". This cannot be undone.`
+      : "";
 
   return (
     <div className="space-y-6">
@@ -275,8 +352,49 @@ export function GalleryAdminClient({
 
       {/* Gallery grid */}
       {totalItems > 0 ? (
-        <div className="text-xs text-muted-foreground">
-          Showing {start}-{end} of {totalItems} · Page {currentPage} of {totalPages}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="text-xs text-muted-foreground">
+            Showing {start}-{end} of {totalItems} · Page {currentPage} of {totalPages}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="gap-1.5"
+              onClick={toggleSelectPage}
+              disabled={deleting}
+            >
+              {allPageSelected ? (
+                <CheckSquare className="h-4 w-4" />
+              ) : (
+                <Square className="h-4 w-4" />
+              )}
+              {allPageSelected ? "Deselect page" : "Select page"}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="gap-1.5"
+              onClick={() => setDeleteTarget({ type: "selected" })}
+              disabled={selectedCount === 0 || deleting}
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete selected{selectedCount > 0 ? ` (${selectedCount})` : ""}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="destructive"
+              className="gap-1.5"
+              onClick={() => setDeleteTarget({ type: "all" })}
+              disabled={deleting}
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete all
+            </Button>
+          </div>
         </div>
       ) : null}
 
@@ -290,38 +408,83 @@ export function GalleryAdminClient({
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-          {initialItems.map((item) => (
-            <div
-              key={item.id}
-              className="group relative rounded-xl border border-border overflow-hidden bg-card"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={item.imageUrl}
-                alt={item.title}
-                className="w-full aspect-square object-cover"
-                loading="lazy"
-              />
-              <div className="p-3 space-y-1">
-                <p className="text-sm font-medium truncate">{item.title}</p>
-              </div>
-              <Button
-                variant="destructive"
-                size="icon"
-                className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                onClick={() => handleDelete(item.id)}
-                disabled={deletingId === item.id}
+          {initialItems.map((item) => {
+            const isSelected = selected.has(item.id);
+            return (
+              <div
+                key={item.id}
+                className={`group relative overflow-hidden rounded-xl border bg-card ${
+                  isSelected ? "border-primary ring-2 ring-primary/20" : "border-border"
+                }`}
               >
-                {deletingId === item.id ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
+                <button
+                  type="button"
+                  className="absolute left-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-lg bg-background/90 shadow-sm transition-colors hover:bg-background"
+                  onClick={() => toggleSelect(item.id)}
+                  aria-label={isSelected ? "Deselect image" : "Select image"}
+                >
+                  {isSelected ? (
+                    <CheckSquare className="h-4 w-4 text-primary" />
+                  ) : (
+                    <Square className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </button>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={item.imageUrl}
+                  alt={item.title}
+                  className="aspect-square w-full object-cover"
+                  loading="lazy"
+                />
+                <div className="space-y-1 p-3">
+                  <p className="truncate text-sm font-medium">{item.title}</p>
+                </div>
+                <Button
+                  variant="destructive"
+                  size="icon"
+                  className="absolute right-2 top-2 h-7 w-7 opacity-0 transition-opacity group-hover:opacity-100"
+                  onClick={() =>
+                    setDeleteTarget({ type: "single", id: item.id, title: item.title })
+                  }
+                  disabled={deleting}
+                >
                   <Trash2 className="h-3.5 w-3.5" />
-                )}
-              </Button>
-            </div>
-          ))}
+                </Button>
+              </div>
+            );
+          })}
         </div>
       )}
+      <AlertDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open && !deleting) setDeleteTarget(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {deleteTarget?.type === "all"
+                ? "Delete all gallery images?"
+                : deleteTarget?.type === "selected"
+                ? "Delete selected images?"
+                : "Delete gallery image?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>{deleteDescription}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="gap-1.5 bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleting || (deleteTarget?.type === "selected" && selectedCount === 0)}
+              onClick={handleConfirmDelete}
+            >
+              {deleting && <Loader2 className="h-4 w-4 animate-spin" />}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
