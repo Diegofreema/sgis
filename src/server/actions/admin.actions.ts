@@ -684,7 +684,7 @@ export async function deleteQuestion(questionId: string): Promise<ActionResult> 
 
 export async function createGalleryItemRecords(
   records: { imageUrl: string; title: string }[]
-): Promise<ActionResult<{ items: typeof galleryItems.$inferSelect[] }>> {
+): Promise<ActionResult<{ count: number }>> {
   const admin = await requireRole(["admin"]);
   if (!db) return { success: false, error: "Service unavailable" };
   if (records.length === 0) return { success: false, error: "No records to create." };
@@ -710,23 +710,26 @@ export async function createGalleryItemRecords(
     .limit(1)
     .then((rows) => rows[0]?.sortOrder ?? -1);
 
-  const items = await db
-    .insert(galleryItems)
-    .values(
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("gallery_items")
+    .insert(
       records.map((record, index) => ({
-        imageUrl: record.imageUrl,
+        image_url: record.imageUrl,
         title: record.title.trim(),
         description: null,
         category: null,
-        visibility: "public" as const,
-        sortOrder: baseSortOrder + index + 1,
-        createdBy: admin.id,
+        visibility: "public",
+        sort_order: baseSortOrder + index + 1,
+        created_by: admin.id,
       }))
     )
-    .returning();
+    .select("id");
+
+  if (error) return { success: false, error: error.message };
 
   revalidateGalleryPaths();
-  return { success: true, data: { items } };
+  return { success: true, data: { count: data?.length ?? records.length } };
 }
 
 // DB rows are deleted before storage files. If storage deletion fails, the
@@ -817,7 +820,15 @@ export async function deleteGalleryItem(itemId: string): Promise<ActionResult> {
 
   const path = existing ? getGalleryObjectPath(existing.imageUrl) : null;
 
-  await db.delete(galleryItems).where(eq(galleryItems.id, itemId));
+  const supabase = createAdminClient();
+  const { error: deleteError } = await supabase
+    .from("gallery_items")
+    .delete()
+    .eq("id", itemId);
+
+  if (deleteError) {
+    return { success: false, error: deleteError.message };
+  }
 
   if (path) {
     try {
@@ -846,7 +857,15 @@ export async function deleteGalleryItems(itemIds: string[]): Promise<ActionResul
 
   if (existing.length === 0) return { success: true, data: { deleted: 0 } };
 
-  await db.delete(galleryItems).where(inArray(galleryItems.id, itemIds));
+  const supabase = createAdminClient();
+  const { error: deleteError } = await supabase
+    .from("gallery_items")
+    .delete()
+    .in("id", itemIds);
+
+  if (deleteError) {
+    return { success: false, error: deleteError.message };
+  }
 
   const paths = existing
     .map((item) => getGalleryObjectPath(item.imageUrl))

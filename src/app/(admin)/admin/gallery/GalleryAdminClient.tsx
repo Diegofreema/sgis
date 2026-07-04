@@ -150,9 +150,9 @@ export function GalleryAdminClient({
     setSaving(false);
     if (dbResult.success) {
       toast.success(
-        dbResult.data.items.length === 1
+        dbResult.data.count === 1
           ? "Gallery item added."
-          : `${dbResult.data.items.length} gallery items added.`
+          : `${dbResult.data.count} gallery items added.`
       );
       setDialogOpen(false);
       resetForm();
