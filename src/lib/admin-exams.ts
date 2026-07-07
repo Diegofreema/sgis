@@ -334,3 +334,71 @@ export async function sendBulkResultEmails(_examId: string): Promise<ActionResul
     error: "Result emails require a server mailer (add a send-result-emails Edge Function).",
   };
 }
+
+// ─── Exam results (read-only) ───────────────────────────────────────
+
+export type ExamResultRow = {
+  id: string;
+  applicationCode: string;
+  applicantName: string;
+  applicantEmail: string;
+  status: string;
+  score: string | null;
+  totalMarks: number | null;
+  passed: boolean | null;
+  submittedAt: string | null;
+  startedAt: string;
+};
+
+export async function getExamTitle(examId: string): Promise<string | null> {
+  const { data } = await supabase.from("exams").select("title").eq("id", examId).maybeSingle();
+  return data?.title ?? null;
+}
+
+export async function listExamResults(
+  examId: string,
+  input: { page?: number; pageSize?: number },
+): Promise<{ rows: ExamResultRow[]; total: number; page: number; pageSize: number }> {
+  const pageSize = Math.max(1, input.pageSize ?? 20);
+  const page = Math.max(1, input.page ?? 1);
+  const from = (page - 1) * pageSize;
+
+  const { data, count, error } = await supabase
+    .from("exam_attempts")
+    .select(
+      "id, status, score, totalMarks:total_marks, passed, submittedAt:submitted_at, startedAt:started_at, applications!inner(applicationCode:application_code, firstName:first_name, lastName:last_name, email)",
+      { count: "exact" },
+    )
+    .eq("exam_id", examId)
+    .order("submitted_at", { ascending: false })
+    .range(from, from + pageSize - 1);
+  if (error) throw error;
+
+  type AppEmbed = { applicationCode: string; firstName: string; lastName: string; email: string };
+  const rows: ExamResultRow[] = (data ?? []).map((raw) => {
+    const r = raw as unknown as {
+      id: string;
+      status: string;
+      score: string | null;
+      totalMarks: number | null;
+      passed: boolean | null;
+      submittedAt: string | null;
+      startedAt: string;
+      applications: AppEmbed | AppEmbed[];
+    };
+    const app = (Array.isArray(r.applications) ? r.applications[0] : r.applications) as AppEmbed | undefined;
+    return {
+      id: r.id,
+      applicationCode: app?.applicationCode ?? "",
+      applicantName: `${app?.firstName ?? ""} ${app?.lastName ?? ""}`.trim(),
+      applicantEmail: app?.email ?? "",
+      status: r.status,
+      score: r.score,
+      totalMarks: r.totalMarks,
+      passed: r.passed,
+      submittedAt: r.submittedAt,
+      startedAt: r.startedAt,
+    };
+  });
+  return { rows, total: count ?? 0, page, pageSize };
+}
