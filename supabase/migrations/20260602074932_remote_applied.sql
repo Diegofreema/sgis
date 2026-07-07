@@ -1,0 +1,1 @@
+-- placeholder: already applied on remote (content lives in the remote DB); kept so 'supabase db push' history matches. Do not edit.
