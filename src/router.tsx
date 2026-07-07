@@ -21,6 +21,7 @@ import { AdminLayout } from "@/pages/admin/AdminLayout";
 import { AdminDashboard } from "@/pages/admin/AdminDashboard";
 import { AnnouncementsPage } from "@/pages/admin/AnnouncementsPage";
 import { AdminGalleryPage } from "@/pages/admin/AdminGalleryPage";
+import { AdminSettingsPage } from "@/pages/admin/AdminSettingsPage";
 import { AdminError } from "@/components/admin/AdminError";
 
 // ─── Public route group (app/(public)/layout.tsx) ──────────────────────
@@ -163,6 +164,12 @@ const adminGalleryRoute = createRoute({
   component: AdminGalleryPage,
 });
 
+const adminSettingsRoute = createRoute({
+  getParentRoute: () => adminLayoutRoute,
+  path: "/settings",
+  component: AdminSettingsPage,
+});
+
 const routeTree = rootRoute.addChildren([
   publicLayoutRoute.addChildren([
     homeRoute,
@@ -178,6 +185,7 @@ const routeTree = rootRoute.addChildren([
     adminDashboardRoute,
     adminAnnouncementsRoute,
     adminGalleryRoute,
+    adminSettingsRoute,
   ]),
 ]);
 
