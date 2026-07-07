@@ -240,3 +240,30 @@ export async function deleteAllGalleryItems(): Promise<ActionResult<{ deleted: n
   const { data: rows } = await supabase.from("gallery_items").select("id");
   return removeGalleryRows((rows ?? []).map((r) => r.id));
 }
+
+// ─── Users (admin list, read-only) ──────────────────────────────────
+
+export type AdminUser = {
+  id: string;
+  authUserId: string;
+  role: "admin";
+  firstName: string | null;
+  lastName: string | null;
+  email: string;
+  phone: string | null;
+  state: string | null;
+  lga: string | null;
+  createdAt: string;
+};
+
+export async function getAdminUsers(): Promise<AdminUser[]> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select(
+      "id, authUserId:auth_user_id, role, firstName:first_name, lastName:last_name, email, phone, state, lga, createdAt:created_at",
+    )
+    .eq("role", "admin")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data as unknown as AdminUser[]) ?? [];
+}

@@ -23,6 +23,7 @@ import { AnnouncementsPage } from "@/pages/admin/AnnouncementsPage";
 import { AdminGalleryPage } from "@/pages/admin/AdminGalleryPage";
 import { AdminSettingsPage } from "@/pages/admin/AdminSettingsPage";
 import { AdminApplicantsPage } from "@/pages/admin/AdminApplicantsPage";
+import { AdminUsersPage } from "@/pages/admin/AdminUsersPage";
 import { AdminError } from "@/components/admin/AdminError";
 
 // ─── Public route group (app/(public)/layout.tsx) ──────────────────────
@@ -182,6 +183,12 @@ const adminApplicantsRoute = createRoute({
   component: AdminApplicantsPage,
 });
 
+const adminUsersRoute = createRoute({
+  getParentRoute: () => adminLayoutRoute,
+  path: "/users",
+  component: AdminUsersPage,
+});
+
 const routeTree = rootRoute.addChildren([
   publicLayoutRoute.addChildren([
     homeRoute,
@@ -199,6 +206,7 @@ const routeTree = rootRoute.addChildren([
     adminGalleryRoute,
     adminSettingsRoute,
     adminApplicantsRoute,
+    adminUsersRoute,
   ]),
 ]);
 
