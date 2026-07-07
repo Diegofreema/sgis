@@ -25,6 +25,8 @@ import { AdminSettingsPage } from "@/pages/admin/AdminSettingsPage";
 import { AdminApplicantsPage } from "@/pages/admin/AdminApplicantsPage";
 import { AdminUsersPage } from "@/pages/admin/AdminUsersPage";
 import { AdminQuestionBankPage } from "@/pages/admin/AdminQuestionBankPage";
+import { AdminExamsPage } from "@/pages/admin/AdminExamsPage";
+import { AdminExamDetailPage } from "@/pages/admin/AdminExamDetailPage";
 import { AdminError } from "@/components/admin/AdminError";
 
 // ─── Public route group (app/(public)/layout.tsx) ──────────────────────
@@ -204,6 +206,18 @@ const adminQuestionBankRoute = createRoute({
   component: AdminQuestionBankPage,
 });
 
+const adminExamsRoute = createRoute({
+  getParentRoute: () => adminLayoutRoute,
+  path: "/exams",
+  component: AdminExamsPage,
+});
+
+const adminExamDetailRoute = createRoute({
+  getParentRoute: () => adminLayoutRoute,
+  path: "/exams/$id",
+  component: AdminExamDetailPage,
+});
+
 const routeTree = rootRoute.addChildren([
   publicLayoutRoute.addChildren([
     homeRoute,
@@ -223,6 +237,8 @@ const routeTree = rootRoute.addChildren([
     adminApplicantsRoute,
     adminUsersRoute,
     adminQuestionBankRoute,
+    adminExamsRoute,
+    adminExamDetailRoute,
   ]),
 ]);
 
