@@ -17,6 +17,9 @@ import { ForgotPasswordPage } from "@/pages/auth/ForgotPasswordPage";
 import { RegisterPage } from "@/pages/auth/RegisterPage";
 import { VerifyEmailPage } from "@/pages/auth/VerifyEmailPage";
 import { ResetPasswordPage } from "@/pages/auth/ResetPasswordPage";
+import { AdminLayout } from "@/pages/admin/AdminLayout";
+import { AdminDashboard } from "@/pages/admin/AdminDashboard";
+import { AdminError } from "@/components/admin/AdminError";
 
 // ─── Public route group (app/(public)/layout.tsx) ──────────────────────
 const publicLayoutRoute = createRoute({
@@ -120,6 +123,29 @@ const resetPasswordRoute = createRoute({
   component: ResetPasswordPage,
 });
 
+// ─── Admin route group (app/(admin)/layout.tsx) — admin-only guard ─────
+const adminLayoutRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/admin",
+  component: AdminLayout,
+  errorComponent: AdminError,
+  beforeLoad: async () => {
+    const profile = await getCurrentProfile();
+    if (!profile || profile.role !== "admin") {
+      throw redirect({ to: "/login" });
+    }
+  },
+});
+
+const adminDashboardRoute = createRoute({
+  getParentRoute: () => adminLayoutRoute,
+  path: "/",
+  validateSearch: (search: Record<string, unknown>): { period?: string } => ({
+    period: typeof search.period === "string" ? search.period : undefined,
+  }),
+  component: AdminDashboard,
+});
+
 const routeTree = rootRoute.addChildren([
   publicLayoutRoute.addChildren([
     homeRoute,
@@ -131,6 +157,7 @@ const routeTree = rootRoute.addChildren([
   ]),
   authLayoutRoute.addChildren([loginRoute, forgotPasswordRoute, registerRoute]),
   accountLayoutRoute.addChildren([verifyEmailRoute, resetPasswordRoute]),
+  adminLayoutRoute.addChildren([adminDashboardRoute]),
 ]);
 
 export const router = createRouter({
