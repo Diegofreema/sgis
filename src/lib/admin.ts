@@ -160,3 +160,83 @@ export async function deleteAnnouncement(id: string): Promise<ActionResult> {
   if (!count) return { success: false, error: "Announcement not found." };
   return { success: true, data: undefined };
 }
+
+// ─── Gallery (admin RLS + storage) ──────────────────────────────────
+
+const GALLERY_BUCKET = "gallery";
+
+function galleryPathFromUrl(url: string): string | null {
+  const marker = `/public/${GALLERY_BUCKET}/`;
+  const i = url.indexOf(marker);
+  return i === -1 ? null : url.slice(i + marker.length);
+}
+
+export async function uploadGalleryImage(
+  formData: FormData,
+): Promise<ActionResult<{ path: string; url: string }>> {
+  const file = formData.get("image");
+  if (!(file instanceof File)) return { success: false, error: "No image provided." };
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
+  const safeName = file.name.replace(/\.[^.]+$/, "").replace(/[^a-z0-9]+/gi, "-").toLowerCase();
+  const path = `gallery/${Date.now()}-${crypto.randomUUID()}-${safeName}.${ext}`;
+
+  const { error } = await supabase.storage
+    .from(GALLERY_BUCKET)
+    .upload(path, file, { contentType: file.type });
+  if (error) return { success: false, error: error.message };
+
+  const { data } = supabase.storage.from(GALLERY_BUCKET).getPublicUrl(path);
+  return { success: true, data: { path, url: data.publicUrl } };
+}
+
+export async function deleteGalleryUpload(path: string): Promise<ActionResult> {
+  const { error } = await supabase.storage.from(GALLERY_BUCKET).remove([path]);
+  if (error) return { success: false, error: error.message };
+  return { success: true, data: undefined };
+}
+
+export async function createGalleryItemRecords(
+  records: { imageUrl: string; title: string }[],
+): Promise<ActionResult<{ count: number }>> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { success: false, error: "Not authorized." };
+  const rows = records.map((r) => ({
+    title: r.title,
+    image_url: r.imageUrl,
+    visibility: "public",
+    created_by: profile.id,
+  }));
+  const { data, error } = await supabase.from("gallery_items").insert(rows).select("id");
+  if (error) return { success: false, error: error.message };
+  return { success: true, data: { count: data?.length ?? 0 } };
+}
+
+async function removeGalleryRows(ids: string[]): Promise<ActionResult<{ deleted: number }>> {
+  if (ids.length === 0) return { success: true, data: { deleted: 0 } };
+  // Best-effort storage cleanup, then delete rows.
+  const { data: rows } = await supabase.from("gallery_items").select("image_url").in("id", ids);
+  const paths = (rows ?? [])
+    .map((r) => galleryPathFromUrl(r.image_url))
+    .filter((p): p is string => !!p);
+  if (paths.length) await supabase.storage.from(GALLERY_BUCKET).remove(paths);
+
+  const { error, count } = await supabase
+    .from("gallery_items")
+    .delete({ count: "exact" })
+    .in("id", ids);
+  if (error) return { success: false, error: error.message };
+  return { success: true, data: { deleted: count ?? 0 } };
+}
+
+export function deleteGalleryItem(id: string) {
+  return removeGalleryRows([id]);
+}
+
+export function deleteGalleryItems(ids: string[]) {
+  return removeGalleryRows(ids);
+}
+
+export async function deleteAllGalleryItems(): Promise<ActionResult<{ deleted: number }>> {
+  const { data: rows } = await supabase.from("gallery_items").select("id");
+  return removeGalleryRows((rows ?? []).map((r) => r.id));
+}

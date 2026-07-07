@@ -20,6 +20,7 @@ import { ResetPasswordPage } from "@/pages/auth/ResetPasswordPage";
 import { AdminLayout } from "@/pages/admin/AdminLayout";
 import { AdminDashboard } from "@/pages/admin/AdminDashboard";
 import { AnnouncementsPage } from "@/pages/admin/AnnouncementsPage";
+import { AdminGalleryPage } from "@/pages/admin/AdminGalleryPage";
 import { AdminError } from "@/components/admin/AdminError";
 
 // ─── Public route group (app/(public)/layout.tsx) ──────────────────────
@@ -153,6 +154,15 @@ const adminAnnouncementsRoute = createRoute({
   component: AnnouncementsPage,
 });
 
+const adminGalleryRoute = createRoute({
+  getParentRoute: () => adminLayoutRoute,
+  path: "/gallery",
+  validateSearch: (search: Record<string, unknown>): { page?: number } => ({
+    page: search.page ? Number(search.page) : undefined,
+  }),
+  component: AdminGalleryPage,
+});
+
 const routeTree = rootRoute.addChildren([
   publicLayoutRoute.addChildren([
     homeRoute,
@@ -164,7 +174,11 @@ const routeTree = rootRoute.addChildren([
   ]),
   authLayoutRoute.addChildren([loginRoute, forgotPasswordRoute, registerRoute]),
   accountLayoutRoute.addChildren([verifyEmailRoute, resetPasswordRoute]),
-  adminLayoutRoute.addChildren([adminDashboardRoute, adminAnnouncementsRoute]),
+  adminLayoutRoute.addChildren([
+    adminDashboardRoute,
+    adminAnnouncementsRoute,
+    adminGalleryRoute,
+  ]),
 ]);
 
 export const router = createRouter({
