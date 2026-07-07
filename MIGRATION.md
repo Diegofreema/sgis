@@ -51,21 +51,32 @@ news/gallery cards, animations, all `components/ui`, `globals.css`
 - `getCurrentProfile` / `logout` / middleware auth → `src/lib/auth.ts` (client)
 - `NEXT_PUBLIC_*` env → `VITE_*` (`.env`)
 
-## Legacy-only / deferred (NOT migrated — need a server)
+## Admin panel + entrance-exam — MIGRATED (via RLS + Edge Functions, deployed)
 
-These remain fully functional in `legacy/next-app/` and were **not** faked with
-static data. Reproducing them in the SPA needs the "Next as API backend"
-strategy (rejected) or new RLS/Edge Functions.
+The full backend contract is live on the Supabase project (see
+[RLS-EDGE-PLAN.md](RLS-EDGE-PLAN.md)) and the UI is migrated:
 
-| Feature | Why it can't move to the browser |
-|---------|----------------------------------|
-| `admission_settings` read | Table RLS denies anon `SELECT` (Postgres 42501). CTA open/closed still works via `application_periods`; footer/contact fall back to `siteConfig`. |
-| Entrance-exam application (`/entrance-exam`, `/entrance-exam/exam*`) | `createPublicApplication`, file uploads, payment, `startPublicExamAttempt`, `getVerifiedPublicExamAccess` — server actions + **exam answer secrecy** (must not ship question bank/answers to the client). |
-| Admin panel (`/admin/**`) | Service-role writes (Drizzle + `supabase/admin`), audit logs, CMS/exam/user/payment management, XLSX, email. **Post-login lands on `/admin` (path preserved) which 404s in the SPA until admin migrates.** |
-| `/auth/confirm` route handler | Supabase server-side code exchange (token → session cookie). SPA uses client-side `detectSessionInUrl` on `/reset-password` instead. |
-| Gallery admin inline-delete | Service-role `deleteGalleryItems`/`deleteAllGalleryItems`. Public gallery is read-only; management belongs in the admin panel. |
-| `/maintenance` | Gated by `MAINTENANCE_MODE` server env + middleware. |
-| Email (nodemailer/resend), middleware (`proxy.ts`), all `server/actions/*` | Server runtime only. |
+- **Admin** (all 7 sidebar sections): dashboard, applicants, examinations
+  (+ detail + results), question bank (+ bulk XLSX upload), announcements,
+  gallery, users, settings (admission settings / periods / bank accounts).
+  All CRUD via `supabase-js` under the `admin_all_*` RLS policies. Admin-only
+  route guard (`beforeLoad`).
+- **Entrance-exam**: application form → `submit-application`; tracker →
+  `track-application`; exam discovery → `exam-discovery`; OTP access →
+  `exam-access-request`/`-verify`; taking + grading → `exam-start`/`exam-submit`.
+  **Exam answer secrecy preserved** — `correct_option` never reaches the client.
+- `admission_settings` anon read fixed (grants migration `20260707000100`).
+
+### Still legacy-only / stubbed
+
+| Item | Note |
+|------|------|
+| Post-login `/admin` | Now a real SPA route (admin guard). |
+| Bulk result emails (`sendBulkResultEmails`) | Stubbed with a clear error — add a `send-result-emails` Edge Function (reads attempts + Resend) to enable. |
+| `/maintenance` | Not migrated — gated by `MAINTENANCE_MODE` server env; low priority. |
+| `/entrance-exam/exam/$attemptId/result` full result page | The tracker shows pass/fail + score; the standalone per-attempt result page is not migrated. |
+| Activity audit log | Legacy `logActivity` writes are omitted from client mutations (no audit trail from the SPA). |
+| Legacy `server/actions/*`, `proxy.ts` middleware | Superseded by RLS + Edge Functions; remain in `legacy/next-app/`. |
 
 ## Server-only backend (RLS + Edge Functions)
 
