@@ -1,15 +1,22 @@
-import { createRouter, createRoute } from "@tanstack/react-router";
+import { createRouter, createRoute, redirect } from "@tanstack/react-router";
 import { Route as rootRoute } from "@/routes/__root";
 import { PublicLayout } from "@/components/public/PublicLayout";
+import { AuthShell } from "@/components/auth/AuthShell";
 import { NotFound } from "@/components/shared/NotFound";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { GalleryError } from "@/components/gallery/GalleryError";
+import { getCurrentProfile } from "@/lib/auth";
 import { HomePage } from "@/pages/HomePage";
 import { AboutPage } from "@/pages/AboutPage";
 import { AdmissionsPage } from "@/pages/AdmissionsPage";
 import { ContactPage } from "@/pages/ContactPage";
 import { GalleryPage } from "@/pages/GalleryPage";
 import { NewsArticlePage } from "@/pages/NewsArticlePage";
+import { LoginPage } from "@/pages/auth/LoginPage";
+import { ForgotPasswordPage } from "@/pages/auth/ForgotPasswordPage";
+import { RegisterPage } from "@/pages/auth/RegisterPage";
+import { VerifyEmailPage } from "@/pages/auth/VerifyEmailPage";
+import { ResetPasswordPage } from "@/pages/auth/ResetPasswordPage";
 
 // ─── Public route group (app/(public)/layout.tsx) ──────────────────────
 const publicLayoutRoute = createRoute({
@@ -60,6 +67,59 @@ const newsArticleRoute = createRoute({
   component: NewsArticlePage,
 });
 
+// ─── Auth route group (app/(auth)/layout.tsx) ──────────────────────────
+// Guard: authenticated users are redirected away from auth pages. Legacy
+// sent them to /admin (legacy-only); the SPA sends them home.
+const authLayoutRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  id: "auth",
+  component: AuthShell,
+  beforeLoad: async () => {
+    const profile = await getCurrentProfile();
+    if (profile) throw redirect({ to: "/" });
+  },
+});
+
+const loginRoute = createRoute({
+  getParentRoute: () => authLayoutRoute,
+  path: "/login",
+  component: LoginPage,
+});
+
+const forgotPasswordRoute = createRoute({
+  getParentRoute: () => authLayoutRoute,
+  path: "/forgot-password",
+  component: ForgotPasswordPage,
+});
+
+const registerRoute = createRoute({
+  getParentRoute: () => authLayoutRoute,
+  path: "/register",
+  component: RegisterPage,
+});
+
+// ─── Account route group (app/(account)/layout.tsx) — no guard ─────────
+const accountLayoutRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  id: "account",
+  component: AuthShell,
+});
+
+const verifyEmailRoute = createRoute({
+  getParentRoute: () => accountLayoutRoute,
+  path: "/verify-email",
+  validateSearch: (search: Record<string, unknown>): { email?: string } => ({
+    email: typeof search.email === "string" ? search.email : undefined,
+  }),
+  component: VerifyEmailPage,
+});
+
+const resetPasswordRoute = createRoute({
+  getParentRoute: () => accountLayoutRoute,
+  path: "/reset-password",
+  component: ResetPasswordPage,
+});
+
 const routeTree = rootRoute.addChildren([
   publicLayoutRoute.addChildren([
     homeRoute,
@@ -69,6 +129,8 @@ const routeTree = rootRoute.addChildren([
     galleryRoute,
     newsArticleRoute,
   ]),
+  authLayoutRoute.addChildren([loginRoute, forgotPasswordRoute, registerRoute]),
+  accountLayoutRoute.addChildren([verifyEmailRoute, resetPasswordRoute]),
 ]);
 
 export const router = createRouter({
