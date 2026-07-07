@@ -20,6 +20,19 @@ const AnyLink = RouterLink as unknown as React.ComponentType<
   Record<string, unknown>
 >;
 
+function parseHref(href: string): {
+  to: string;
+  search?: Record<string, string>;
+  hash?: string;
+} {
+  const [pathAndQuery, hash] = href.split("#");
+  const [to, query] = pathAndQuery.split("?");
+  if (!query) return { to, hash };
+  const search: Record<string, string> = {};
+  for (const [k, v] of new URLSearchParams(query)) search[k] = v;
+  return { to, search, hash };
+}
+
 export default function Link({
   href,
   replace,
@@ -28,8 +41,9 @@ export default function Link({
   children,
   ...rest
 }: LinkProps) {
+  const { to, search, hash } = parseHref(href);
   return (
-    <AnyLink to={href} replace={replace} {...rest}>
+    <AnyLink to={to} search={search} hash={hash} replace={replace} {...rest}>
       {children}
     </AnyLink>
   );
