@@ -24,6 +24,7 @@ import { AdminGalleryPage } from "@/pages/admin/AdminGalleryPage";
 import { AdminSettingsPage } from "@/pages/admin/AdminSettingsPage";
 import { AdminApplicantsPage } from "@/pages/admin/AdminApplicantsPage";
 import { AdminUsersPage } from "@/pages/admin/AdminUsersPage";
+import { AdminQuestionBankPage } from "@/pages/admin/AdminQuestionBankPage";
 import { AdminError } from "@/components/admin/AdminError";
 
 // ─── Public route group (app/(public)/layout.tsx) ──────────────────────
@@ -189,6 +190,20 @@ const adminUsersRoute = createRoute({
   component: AdminUsersPage,
 });
 
+const adminQuestionBankRoute = createRoute({
+  getParentRoute: () => adminLayoutRoute,
+  path: "/question-bank",
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { q?: string; subject?: string; difficulty?: string; page?: number } => ({
+    q: typeof search.q === "string" ? search.q : undefined,
+    subject: typeof search.subject === "string" ? search.subject : undefined,
+    difficulty: typeof search.difficulty === "string" ? search.difficulty : undefined,
+    page: search.page ? Number(search.page) : undefined,
+  }),
+  component: AdminQuestionBankPage,
+});
+
 const routeTree = rootRoute.addChildren([
   publicLayoutRoute.addChildren([
     homeRoute,
@@ -207,6 +222,7 @@ const routeTree = rootRoute.addChildren([
     adminSettingsRoute,
     adminApplicantsRoute,
     adminUsersRoute,
+    adminQuestionBankRoute,
   ]),
 ]);
 
