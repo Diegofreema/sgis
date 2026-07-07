@@ -19,6 +19,7 @@ import { VerifyEmailPage } from "@/pages/auth/VerifyEmailPage";
 import { ResetPasswordPage } from "@/pages/auth/ResetPasswordPage";
 import { AdminLayout } from "@/pages/admin/AdminLayout";
 import { AdminDashboard } from "@/pages/admin/AdminDashboard";
+import { AnnouncementsPage } from "@/pages/admin/AnnouncementsPage";
 import { AdminError } from "@/components/admin/AdminError";
 
 // ─── Public route group (app/(public)/layout.tsx) ──────────────────────
@@ -146,6 +147,12 @@ const adminDashboardRoute = createRoute({
   component: AdminDashboard,
 });
 
+const adminAnnouncementsRoute = createRoute({
+  getParentRoute: () => adminLayoutRoute,
+  path: "/announcements",
+  component: AnnouncementsPage,
+});
+
 const routeTree = rootRoute.addChildren([
   publicLayoutRoute.addChildren([
     homeRoute,
@@ -157,7 +164,7 @@ const routeTree = rootRoute.addChildren([
   ]),
   authLayoutRoute.addChildren([loginRoute, forgotPasswordRoute, registerRoute]),
   accountLayoutRoute.addChildren([verifyEmailRoute, resetPasswordRoute]),
-  adminLayoutRoute.addChildren([adminDashboardRoute]),
+  adminLayoutRoute.addChildren([adminDashboardRoute, adminAnnouncementsRoute]),
 ]);
 
 export const router = createRouter({
