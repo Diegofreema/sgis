@@ -67,6 +67,23 @@ strategy (rejected) or new RLS/Edge Functions.
 | `/maintenance` | Gated by `MAINTENANCE_MODE` server env + middleware. |
 | Email (nodemailer/resend), middleware (`proxy.ts`), all `server/actions/*` | Server runtime only. |
 
+## Server-only backend (RLS + Edge Functions)
+
+The admin + entrance-exam server logic now has a concrete, written
+implementation path — see **[RLS-EDGE-PLAN.md](RLS-EDGE-PLAN.md)**:
+
+- `supabase/migrations/` — RLS + Storage policies (`is_admin()`, admin CRUD,
+  public reads, exam tables kept service-role-only). Idempotent, additive.
+- `supabase/functions/` — Edge Functions for the entrance-exam flow
+  (`exam-access-request`/`-verify`, `exam-start`, `exam-submit`) and
+  `submit-application`. Faithful ports; **service role** keeps exam answers +
+  OTP + grading off the client.
+- `src/lib/edge.ts` — SPA client (`supabase.functions.invoke`) for the above.
+
+**Not yet deployed** — applying RLS to prod and deploying functions needs your
+Supabase access token; see the plan's Runbook. Admin *UI pages* still consume
+this layer as a follow-on (same page-migration pattern).
+
 ## Commands
 
 ```bash

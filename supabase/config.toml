@@ -1,0 +1,20 @@
+# Supabase local/link config. `supabase link --project-ref <ref>` then
+# `supabase functions deploy` / `supabase db push` use this.
+project_id = "sgis"
+
+# Public entrance-exam + application functions: no Supabase JWT required
+# (applicants are anonymous; each function does its own validation).
+[functions.exam-access-request]
+verify_jwt = false
+
+[functions.exam-access-verify]
+verify_jwt = false
+
+[functions.exam-start]
+verify_jwt = false
+
+[functions.exam-submit]
+verify_jwt = false
+
+[functions.submit-application]
+verify_jwt = false
