@@ -1,16 +1,24 @@
 import { createRouter, createRoute } from "@tanstack/react-router";
 import { Route as rootRoute } from "@/routes/__root";
+import { PublicLayout } from "@/components/public/PublicLayout";
+import { HomePage } from "@/pages/HomePage";
 
-// ─── Placeholder index route (replaced during page migration) ──────────
-const indexRoute = createRoute({
+// ─── Public route group (app/(public)/layout.tsx) ──────────────────────
+const publicLayoutRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/",
-  component: () => (
-    <div className="p-8 text-foreground">Vite migration scaffold — routing online.</div>
-  ),
+  id: "public",
+  component: PublicLayout,
 });
 
-const routeTree = rootRoute.addChildren([indexRoute]);
+const homeRoute = createRoute({
+  getParentRoute: () => publicLayoutRoute,
+  path: "/",
+  component: HomePage,
+});
+
+const routeTree = rootRoute.addChildren([
+  publicLayoutRoute.addChildren([homeRoute]),
+]);
 
 export const router = createRouter({ routeTree });
 
