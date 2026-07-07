@@ -18,3 +18,9 @@ verify_jwt = false
 
 [functions.submit-application]
 verify_jwt = false
+
+[functions.track-application]
+verify_jwt = false
+
+[functions.exam-discovery]
+verify_jwt = false

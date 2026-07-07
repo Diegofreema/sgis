@@ -77,3 +77,48 @@ export function examSubmit(input: {
 export function submitApplication(formData: FormData) {
   return invoke<{ applicationCode: string }>("submit-application", formData);
 }
+
+export type TrackApplicationData = {
+  state: string;
+  application: {
+    id: string;
+    applicationCode: string;
+    firstName: string;
+    lastName: string;
+    status: string;
+    submittedAt: string | null;
+    rejectionReason: string | null;
+  } | null;
+  period: { id: string; title: string; examStartDate: string; examEndDate: string } | null;
+  exam: { id: string; title: string; passingScore: number } | null;
+  attempt: {
+    id: string;
+    status: string;
+    score: string | null;
+    totalMarks: number | null;
+    passed: boolean | null;
+  } | null;
+};
+
+export function trackApplication(applicationCode: string) {
+  return invoke<TrackApplicationData>("track-application", { applicationCode });
+}
+
+export type ExamDiscoveryData = {
+  state: string;
+  period: { id: string; title: string; examStartDate: string; examEndDate: string } | null;
+  exam: {
+    id: string;
+    title: string;
+    instructions: string | null;
+    durationMinutes: number;
+    totalMarks: number;
+    passingScore: number;
+  } | null;
+  previewOpensAt: string | null;
+  verificationOpensAt: string | null;
+};
+
+export function examDiscovery(periodId: string) {
+  return invoke<ExamDiscoveryData>("exam-discovery", { periodId });
+}

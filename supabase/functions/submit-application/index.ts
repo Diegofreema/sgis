@@ -12,11 +12,14 @@ const DOCUMENTS_BUCKET = Deno.env.get("STORAGE_BUCKET_DOCUMENTS") ?? "documents"
 
 // Supporting documents (mirror legacy APPLICATION_SUPPORTING_DOCUMENTS).
 const SUPPORTING_DOCS = [
-  { key: "birthCertificate", kind: "birth-certificate", label: "Birth certificate", allowPdf: true },
-  { key: "passportPhoto", kind: "passport-photo", label: "Passport photograph", allowPdf: false },
+  { key: "completedSchoolEntranceForm", kind: "completed-school-entrance-form", allowPdf: true },
+  { key: "passportOne", kind: "passport-1", allowPdf: false },
+  { key: "passportTwo", kind: "passport-2", allowPdf: false },
+  { key: "birthCertificate", kind: "birth-certificate", allowPdf: true },
+  { key: "medicalFitnessReport", kind: "medical-fitness-report", allowPdf: true },
 ];
 const MAX_RECEIPT_BYTES = 100 * 1024; // 100KB (legacy MAX_RECEIPT_UPLOAD_BYTES)
-const MAX_DOC_BYTES = 2 * 1024 * 1024; // 2MB (legacy APPLICATION_DOCUMENT_MAX_BYTES)
+const MAX_DOC_BYTES = 500 * 1024; // 500KB (legacy APPLICATION_DOCUMENT_MAX_BYTES)
 
 const REQUIRED_FIELDS = [
   "firstName", "lastName", "email", "phone", "dateOfBirth",

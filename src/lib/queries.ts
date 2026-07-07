@@ -191,3 +191,21 @@ export async function getAllApplicationPeriods(): Promise<ApplicationPeriod[]> {
   if (error) throw error;
   return (data as unknown as ApplicationPeriod[]) ?? [];
 }
+
+export type PublicBankAccount = {
+  id: string;
+  bankName: string;
+  accountName: string;
+  accountNumber: string;
+  notes: string | null;
+};
+
+export async function getActiveBankAccounts(): Promise<PublicBankAccount[]> {
+  const { data, error } = await supabase
+    .from("bank_accounts")
+    .select("id, bankName:bank_name, accountName:account_name, accountNumber:account_number, notes")
+    .eq("is_active", true)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data as unknown as PublicBankAccount[]) ?? [];
+}

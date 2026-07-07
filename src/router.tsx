@@ -12,6 +12,9 @@ import { AdmissionsPage } from "@/pages/AdmissionsPage";
 import { ContactPage } from "@/pages/ContactPage";
 import { GalleryPage } from "@/pages/GalleryPage";
 import { NewsArticlePage } from "@/pages/NewsArticlePage";
+import { EntranceExamPage } from "@/pages/EntranceExamPage";
+import { ExamPreviewPage } from "@/pages/ExamPreviewPage";
+import { ExamStartPage } from "@/pages/ExamStartPage";
 import { LoginPage } from "@/pages/auth/LoginPage";
 import { ForgotPasswordPage } from "@/pages/auth/ForgotPasswordPage";
 import { RegisterPage } from "@/pages/auth/RegisterPage";
@@ -77,6 +80,37 @@ const newsArticleRoute = createRoute({
   getParentRoute: () => publicLayoutRoute,
   path: "/news/$slug",
   component: NewsArticlePage,
+});
+
+const entranceExamRoute = createRoute({
+  getParentRoute: () => publicLayoutRoute,
+  path: "/entrance-exam",
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { applicationId?: string; session?: string; error?: string } => ({
+    applicationId: typeof search.applicationId === "string" ? search.applicationId : undefined,
+    session: typeof search.session === "string" ? search.session : undefined,
+    error: typeof search.error === "string" ? search.error : undefined,
+  }),
+  component: EntranceExamPage,
+});
+
+const examPreviewRoute = createRoute({
+  getParentRoute: () => publicLayoutRoute,
+  path: "/entrance-exam/exam",
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { session?: string; error?: string } => ({
+    session: typeof search.session === "string" ? search.session : undefined,
+    error: typeof search.error === "string" ? search.error : undefined,
+  }),
+  component: ExamPreviewPage,
+});
+
+const examStartRoute = createRoute({
+  getParentRoute: () => publicLayoutRoute,
+  path: "/entrance-exam/exam/start",
+  component: ExamStartPage,
 });
 
 // ─── Auth route group (app/(auth)/layout.tsx) ──────────────────────────
@@ -236,6 +270,9 @@ const routeTree = rootRoute.addChildren([
     contactRoute,
     galleryRoute,
     newsArticleRoute,
+    entranceExamRoute,
+    examPreviewRoute,
+    examStartRoute,
   ]),
   authLayoutRoute.addChildren([loginRoute, forgotPasswordRoute, registerRoute]),
   accountLayoutRoute.addChildren([verifyEmailRoute, resetPasswordRoute]),
