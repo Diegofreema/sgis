@@ -1,4 +1,3 @@
-import { useNavigate } from "@tanstack/react-router";
 import {
   Select,
   SelectContent,
@@ -12,20 +11,16 @@ type Period = { id: string; title: string };
 type Props = {
   periods: Period[];
   currentPeriodId?: string;
+  onSelect: (value: string) => void;
 };
 
-export function SessionFilterSelect({ periods, currentPeriodId }: Props) {
-  const navigate = useNavigate();
+export function SessionFilterSelect({ periods, currentPeriodId, onSelect }: Props) {
   const selectedPeriod = periods.find((p) => p.id === currentPeriodId);
   const selectedLabel =
     currentPeriodId === "all" ? "All sessions" : selectedPeriod?.title ?? "All sessions";
 
-  function handleChange(value: string) {
-    navigate({ to: "/admin", search: { period: value } });
-  }
-
   return (
-    <Select value={currentPeriodId ?? "all"} onValueChange={handleChange}>
+    <Select value={currentPeriodId ?? "all"} onValueChange={onSelect}>
       <SelectTrigger className="w-60">
         <SelectValue>{selectedLabel}</SelectValue>
       </SelectTrigger>

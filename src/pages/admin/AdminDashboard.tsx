@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getRouteApi } from "@tanstack/react-router";
+import { getRouteApi, useNavigate } from "@tanstack/react-router";
 import { StatsCard } from "@/components/admin/StatsCard";
 import { SessionFilterSelect } from "@/components/admin/SessionFilterSelect";
 import { FadeIn } from "@/components/animations/FadeIn";
@@ -27,6 +27,7 @@ function statusVariant(status: string): "default" | "destructive" | "secondary" 
 
 export function AdminDashboard() {
   const { period } = routeApi.useSearch();
+  const navigate = useNavigate();
   const selectedPeriod = period === "all" || !period ? undefined : period;
 
   const [periods, setPeriods] = useState<AdminPeriod[]>([]);
@@ -61,6 +62,7 @@ export function AdminDashboard() {
             <SessionFilterSelect
               periods={periods}
               currentPeriodId={period === "all" ? "all" : selectedPeriod}
+              onSelect={(value) => navigate({ to: "/admin", search: { period: value } })}
             />
           )}
         </div>
