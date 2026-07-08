@@ -4,7 +4,7 @@ export const siteConfig = {
   description:
     "A world-class international school providing exceptional education, nurturing curious minds, and inspiring the next generation of global leaders.",
   tagline: "Excellence. Character. Global Perspective.",
-  url: import.meta.env.VITE_APP_URL ?? "http://localhost:3000",
+  url: import.meta.env.VITE_APP_URL ?? "http://localhost:5173",
   ogImage: "/og-image.jpg",
   email: "sanktgeorginternationalschool@gmail.com",
   phone: "+2349165573514",
