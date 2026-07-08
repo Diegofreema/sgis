@@ -44,6 +44,18 @@ export type GalleryItem = {
   updatedAt: string;
 };
 
+export type StaffMember = {
+  id: string;
+  name: string;
+  role: string;
+  imageUrl: string;
+  isActive: boolean;
+  sortOrder: number;
+  createdBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type Announcement = {
   id: string;
   title: string;

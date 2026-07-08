@@ -12,6 +12,7 @@ import {
   LayoutDashboard,
   ScrollText,
   Settings,
+  UserRound,
   UserCog,
   Users,
 } from 'lucide-react';
@@ -27,6 +28,7 @@ const adminNavItems = [
   { href: '/admin/announcements', label: 'Announcements', icon: Bell },
   // { href: '/admin/cms', label: 'CMS', icon: FileEdit },
   { href: '/admin/gallery', label: 'Gallery', icon: Image },
+  { href: '/admin/staff', label: 'Staff', icon: UserRound },
   { href: '/admin/users', label: 'Users', icon: UserCog },
   { href: '/admin/activity', label: 'Activity Log', icon: ScrollText },
   { href: '/admin/settings', label: 'Settings', icon: Settings },

@@ -1,6 +1,6 @@
 import { supabase } from "@/lib/supabase/client";
 import { siteConfig } from "@/config/site";
-import type { Announcement, NewsArticle, GalleryItem } from "@/types/cms";
+import type { Announcement, NewsArticle, GalleryItem, StaffMember } from "@/types/cms";
 
 /**
  * Browser data layer — replaces legacy server/queries/* for the Vite SPA.
@@ -18,6 +18,9 @@ const NEWS_LIST_COLS =
 
 const GALLERY_COLS =
   "id, title, description, imageUrl:image_url, category, visibility, sortOrder:sort_order, createdBy:created_by, createdAt:created_at, updatedAt:updated_at";
+
+const STAFF_COLS =
+  "id, name, role, imageUrl:image_url, isActive:is_active, sortOrder:sort_order, createdBy:created_by, createdAt:created_at, updatedAt:updated_at";
 
 const ANNOUNCEMENT_COLS =
   "id, title, slug, body, excerpt, audience, isImportant:is_important, status, publishedAt:published_at, createdBy:created_by, createdAt:created_at, updatedAt:updated_at";
@@ -92,6 +95,17 @@ export async function listGalleryItems(
     .range(from, from + pageSize - 1);
   if (error) throw error;
   return (data as unknown as GalleryItem[]) ?? [];
+}
+
+export async function listStaffMembers(): Promise<StaffMember[]> {
+  const { data, error } = await supabase
+    .from("staff_members")
+    .select(STAFF_COLS)
+    .eq("is_active", true)
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data as unknown as StaffMember[]) ?? [];
 }
 
 // ─── Settings ───────────────────────────────────────────────────────

@@ -1,10 +1,13 @@
 import { supabase } from "@/lib/supabase/client";
 import { getCurrentProfile, type ActionResult } from "@/lib/auth";
 import slugify from "slugify";
-import type { Announcement } from "@/types/cms";
+import type { Announcement, StaffMember } from "@/types/cms";
 
 const ANNOUNCEMENT_COLS =
   "id, title, slug, body, excerpt, audience, isImportant:is_important, status, publishedAt:published_at, createdBy:created_by, createdAt:created_at, updatedAt:updated_at";
+
+const STAFF_COLS =
+  "id, name, role, imageUrl:image_url, isActive:is_active, sortOrder:sort_order, createdBy:created_by, createdAt:created_at, updatedAt:updated_at";
 
 /**
  * Admin data layer — supabase-js as the authenticated admin, gated by the
@@ -170,14 +173,15 @@ function galleryPathFromUrl(url: string): string | null {
   return i === -1 ? null : url.slice(i + marker.length);
 }
 
-export async function uploadGalleryImage(
+async function uploadPublicImage(
   formData: FormData,
+  folder: "gallery" | "staff",
 ): Promise<ActionResult<{ path: string; url: string }>> {
   const file = formData.get("image");
   if (!(file instanceof File)) return { success: false, error: "No image provided." };
   const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
   const safeName = file.name.replace(/\.[^.]+$/, "").replace(/[^a-z0-9]+/gi, "-").toLowerCase();
-  const path = `gallery/${Date.now()}-${crypto.randomUUID()}-${safeName}.${ext}`;
+  const path = `${folder}/${Date.now()}-${crypto.randomUUID()}-${safeName}.${ext}`;
 
   const { error } = await supabase.storage
     .from(GALLERY_BUCKET)
@@ -186,6 +190,12 @@ export async function uploadGalleryImage(
 
   const { data } = supabase.storage.from(GALLERY_BUCKET).getPublicUrl(path);
   return { success: true, data: { path, url: data.publicUrl } };
+}
+
+export async function uploadGalleryImage(
+  formData: FormData,
+): Promise<ActionResult<{ path: string; url: string }>> {
+  return uploadPublicImage(formData, "gallery");
 }
 
 export async function deleteGalleryUpload(path: string): Promise<ActionResult> {
@@ -238,6 +248,93 @@ export function deleteGalleryItems(ids: string[]) {
 export async function deleteAllGalleryItems(): Promise<ActionResult<{ deleted: number }>> {
   const { data: rows } = await supabase.from("gallery_items").select("id");
   return removeGalleryRows((rows ?? []).map((r) => r.id));
+}
+
+// ─── Staff (admin RLS + storage) ────────────────────────────────────
+
+export async function listAllStaffMembers(): Promise<StaffMember[]> {
+  const { data, error } = await supabase
+    .from("staff_members")
+    .select(STAFF_COLS)
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data as unknown as StaffMember[]) ?? [];
+}
+
+export function uploadStaffImage(formData: FormData) {
+  return uploadPublicImage(formData, "staff");
+}
+
+export async function createStaffMember(input: {
+  name: string;
+  role: string;
+  imageUrl: string;
+  isActive: boolean;
+  sortOrder: number;
+}): Promise<ActionResult<{ id: string }>> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { success: false, error: "Not authorized." };
+  const { data, error } = await supabase
+    .from("staff_members")
+    .insert({
+      name: input.name,
+      role: input.role,
+      image_url: input.imageUrl,
+      is_active: input.isActive,
+      sort_order: input.sortOrder,
+      created_by: profile.id,
+    })
+    .select("id")
+    .single();
+  if (error) return { success: false, error: error.message };
+  return { success: true, data: { id: data.id } };
+}
+
+export async function updateStaffMember(
+  id: string,
+  input: {
+    name: string;
+    role: string;
+    imageUrl?: string;
+    isActive: boolean;
+    sortOrder: number;
+  },
+): Promise<ActionResult> {
+  const { data: oldRow } = input.imageUrl
+    ? await supabase.from("staff_members").select("image_url").eq("id", id).single()
+    : { data: null };
+  const patch: Record<string, unknown> = {
+    name: input.name,
+    role: input.role,
+    is_active: input.isActive,
+    sort_order: input.sortOrder,
+    updated_at: new Date().toISOString(),
+  };
+  if (input.imageUrl) patch.image_url = input.imageUrl;
+  const { error } = await supabase.from("staff_members").update(patch).eq("id", id);
+  if (error) return { success: false, error: error.message };
+  const oldPath = oldRow?.image_url ? galleryPathFromUrl(oldRow.image_url) : null;
+  if (oldPath) await supabase.storage.from(GALLERY_BUCKET).remove([oldPath]);
+  return { success: true, data: undefined };
+}
+
+export async function deleteStaffMember(id: string): Promise<ActionResult> {
+  const { data: row } = await supabase
+    .from("staff_members")
+    .select("image_url")
+    .eq("id", id)
+    .single();
+  const path = row?.image_url ? galleryPathFromUrl(row.image_url) : null;
+  if (path) await supabase.storage.from(GALLERY_BUCKET).remove([path]);
+
+  const { error, count } = await supabase
+    .from("staff_members")
+    .delete({ count: "exact" })
+    .eq("id", id);
+  if (error) return { success: false, error: error.message };
+  if (!count) return { success: false, error: "Staff member not found." };
+  return { success: true, data: undefined };
 }
 
 // ─── Users (admin list, read-only) ──────────────────────────────────

@@ -10,6 +10,7 @@ import { HomePage } from "@/pages/HomePage";
 import { AboutPage } from "@/pages/AboutPage";
 import { AdmissionsPage } from "@/pages/AdmissionsPage";
 import { ContactPage } from "@/pages/ContactPage";
+import { FAQPage } from "@/pages/FAQPage";
 import { GalleryPage } from "@/pages/GalleryPage";
 import { NewsArticlePage } from "@/pages/NewsArticlePage";
 import { EntranceExamPage } from "@/pages/EntranceExamPage";
@@ -29,6 +30,7 @@ import { AdminSettingsPage } from "@/pages/admin/AdminSettingsPage";
 import { AdminApplicantsPage } from "@/pages/admin/AdminApplicantsPage";
 import { ApplicantDetailPage } from "@/pages/admin/ApplicantDetailPage";
 import { AdminUsersPage } from "@/pages/admin/AdminUsersPage";
+import { AdminStaffPage } from "@/pages/admin/AdminStaffPage";
 import { ActivityLogPage } from "@/pages/admin/ActivityLogPage";
 import { AdminQuestionBankPage } from "@/pages/admin/AdminQuestionBankPage";
 import { AdminExamsPage } from "@/pages/admin/AdminExamsPage";
@@ -65,6 +67,12 @@ const contactRoute = createRoute({
   getParentRoute: () => publicLayoutRoute,
   path: "/contact",
   component: ContactPage,
+});
+
+const faqRoute = createRoute({
+  getParentRoute: () => publicLayoutRoute,
+  path: "/faq",
+  component: FAQPage,
 });
 
 const galleryRoute = createRoute({
@@ -253,6 +261,12 @@ const adminUsersRoute = createRoute({
   component: AdminUsersPage,
 });
 
+const adminStaffRoute = createRoute({
+  getParentRoute: () => adminLayoutRoute,
+  path: "/staff",
+  component: AdminStaffPage,
+});
+
 const adminActivityRoute = createRoute({
   getParentRoute: () => adminLayoutRoute,
   path: "/activity",
@@ -303,6 +317,7 @@ const routeTree = rootRoute.addChildren([
     aboutRoute,
     admissionsRoute,
     contactRoute,
+    faqRoute,
     galleryRoute,
     newsArticleRoute,
     entranceExamRoute,
@@ -319,6 +334,7 @@ const routeTree = rootRoute.addChildren([
     adminApplicantsRoute,
     adminApplicantDetailRoute,
     adminUsersRoute,
+    adminStaffRoute,
     adminActivityRoute,
     adminQuestionBankRoute,
     adminExamsRoute,

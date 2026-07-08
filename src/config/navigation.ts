@@ -24,6 +24,7 @@ export const publicNav: NavItem[] = [
   },
   // { label: "News", href: "/news" },
   { label: 'Gallery', href: '/gallery' },
+  { label: 'FAQ', href: '/faq' },
   { label: 'Contact', href: '/contact' },
 ];
 
@@ -36,6 +37,7 @@ export const adminNav: NavItem[] = [
   { label: 'Announcements', href: '/admin/announcements' },
   { label: 'CMS', href: '/admin/cms' },
   { label: 'Gallery', href: '/admin/gallery' },
+  { label: 'Staff', href: '/admin/staff' },
   { label: 'Users', href: '/admin/users' },
   { label: 'Settings', href: '/admin/settings' },
 ];
