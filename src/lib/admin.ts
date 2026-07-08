@@ -41,9 +41,6 @@ export async function getDashboardData(periodId?: string): Promise<{
   stats: DashboardStats;
   recent: RecentApplication[];
 }> {
-  let statusQuery = supabase.from("applications").select("status");
-  if (periodId) statusQuery = statusQuery.eq("application_period_id", periodId);
-
   let recentQuery = supabase
     .from("applications")
     .select("id, intendedClass:intended_class, createdAt:created_at, status")
@@ -51,8 +48,10 @@ export async function getDashboardData(periodId?: string): Promise<{
     .limit(5);
   if (periodId) recentQuery = recentQuery.eq("application_period_id", periodId);
 
+  // Grouped count in the DB — no application rows cross the wire (see
+  // application_status_counts in the security-hardening migration).
   const [statusRes, announcementRes, recentRes] = await Promise.all([
-    statusQuery,
+    supabase.rpc("application_status_counts", { p_period: periodId ?? null }),
     supabase
       .from("announcements")
       .select("id", { count: "exact", head: true })
@@ -64,8 +63,8 @@ export async function getDashboardData(periodId?: string): Promise<{
   if (recentRes.error) throw recentRes.error;
 
   const counts: Record<string, number> = {};
-  for (const row of statusRes.data ?? []) {
-    counts[row.status] = (counts[row.status] ?? 0) + 1;
+  for (const row of (statusRes.data as { status: string; count: number }[] | null) ?? []) {
+    counts[row.status] = Number(row.count);
   }
   const total = Object.values(counts).reduce((s, v) => s + v, 0);
 

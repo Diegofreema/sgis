@@ -45,16 +45,18 @@ export type ExamListItem = {
 };
 
 export async function getExamsList(): Promise<ExamListItem[]> {
-  const [{ data: exams, error }, { data: attempts }] = await Promise.all([
+  const [{ data: exams, error }, { data: attemptCounts }] = await Promise.all([
     supabase
       .from("exams")
       .select("id, title, status, durationMinutes:duration_minutes, totalMarks:total_marks, passingScore:passing_score, createdAt:created_at, updatedAt:updated_at")
       .order("created_at", { ascending: false }),
-    supabase.from("exam_attempts").select("exam_id"),
+    // Grouped count in the DB — no exam_attempts rows cross the wire.
+    supabase.rpc("exam_attempt_counts"),
   ]);
   if (error) throw error;
   const counts = new Map<string, number>();
-  for (const a of attempts ?? []) counts.set(a.exam_id, (counts.get(a.exam_id) ?? 0) + 1);
+  for (const r of (attemptCounts as { exam_id: string; count: number }[] | null) ?? [])
+    counts.set(r.exam_id, Number(r.count));
   return (exams ?? []).map((e) => ({ ...(e as Omit<ExamListItem, "attempts">), attempts: counts.get(e.id) ?? 0 }));
 }
 

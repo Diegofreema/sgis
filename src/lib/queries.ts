@@ -11,6 +11,11 @@ import type { Announcement, NewsArticle, GalleryItem } from "@/types/cms";
 const NEWS_COLS =
   "id, title, slug, featuredImageUrl:featured_image_url, excerpt, body, author, status, publishedAt:published_at, seoTitle:seo_title, seoDescription:seo_description, createdBy:created_by, createdAt:created_at, updatedAt:updated_at";
 
+// List view never renders the article body / SEO fields — omit them so the
+// homepage news stream doesn't ship full article bodies it won't use.
+const NEWS_LIST_COLS =
+  "id, title, slug, featuredImageUrl:featured_image_url, excerpt, author, status, publishedAt:published_at, createdBy:created_by, createdAt:created_at, updatedAt:updated_at";
+
 const GALLERY_COLS =
   "id, title, description, imageUrl:image_url, category, visibility, sortOrder:sort_order, createdBy:created_by, createdAt:created_at, updatedAt:updated_at";
 
@@ -43,7 +48,7 @@ export async function listNewsArticles(
 ): Promise<NewsArticle[]> {
   const { data, error } = await supabase
     .from("news_articles")
-    .select(NEWS_COLS)
+    .select(NEWS_LIST_COLS)
     .eq("status", status)
     .order("published_at", { ascending: false })
     .limit(limit);
