@@ -5,7 +5,7 @@
 // same trust model: random id, server-validated, short-lived, revocable).
 // Body: { accessSessionId, code } → { success, data: { token, redirectTo } }
 import { serviceClient } from "../_shared/client.ts";
-import { fail, handlePreflight, ok } from "../_shared/cors.ts";
+import { fail, handlePreflight, ok, serverError } from "../_shared/cors.ts";
 import { getPublicExamWindow } from "../_shared/exam-window.ts";
 import {
   getSessionExpiryDate,
@@ -105,6 +105,6 @@ Deno.serve(async (req) => {
 
     return ok({ token: s.id, redirectTo: "/entrance-exam/exam" });
   } catch (error) {
-    return fail(error instanceof Error ? error.message : "Unexpected error.", 500);
+    return serverError("exam-access-verify", error);
   }
 });

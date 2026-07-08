@@ -4,7 +4,7 @@
 // the applicant-facing fields.
 // Body: { applicationCode } → { success, data: { state, application, period, exam, attempt } }
 import { serviceClient } from "../_shared/client.ts";
-import { fail, handlePreflight, ok } from "../_shared/cors.ts";
+import { fail, handlePreflight, ok, serverError } from "../_shared/cors.ts";
 
 Deno.serve(async (req) => {
   const pre = handlePreflight(req);
@@ -61,6 +61,6 @@ Deno.serve(async (req) => {
     if (now > new Date(period.examEndDate)) return ok({ state: "exam_closed", application, period, exam, attempt });
     return ok({ state: "ready", application, period, exam, attempt });
   } catch (error) {
-    return fail(error instanceof Error ? error.message : "Unexpected error.", 500);
+    return serverError("track-application", error);
   }
 });

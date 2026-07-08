@@ -5,7 +5,7 @@
 // Body: { token, attemptId, answers: [{ questionId, selectedOption }] }
 // → { success, data: undefined }
 import { serviceClient } from "../_shared/client.ts";
-import { fail, handlePreflight, ok } from "../_shared/cors.ts";
+import { fail, handlePreflight, ok, serverError } from "../_shared/cors.ts";
 import { getAssignedQuestions, resolveSession } from "../_shared/session.ts";
 
 Deno.serve(async (req) => {
@@ -28,7 +28,7 @@ Deno.serve(async (req) => {
 
     const { data: attempt } = await db
       .from("exam_attempts")
-      .select("id, exam_id, application_id, question_order, status, total_marks")
+      .select("id, exam_id, application_id, question_order, status, total_marks, expires_at")
       .eq("id", attemptId)
       .maybeSingle();
 
@@ -39,31 +39,38 @@ Deno.serve(async (req) => {
       return ok(undefined); // already finalised — idempotent
     }
 
+    // Timed exam: once the attempt's duration has elapsed, don't accept the
+    // late-submitted answers — grade whatever was already saved and finalise.
+    const expired = attempt.expires_at != null && new Date(attempt.expires_at) < now;
+
     const assigned = await getAssignedQuestions(db, attempt.exam_id);
     if (assigned.length === 0) return fail("This exam has no assigned questions.");
     const questionMap = new Map(assigned.map((q) => [q!.id, q!]));
     const order: string[] = attempt.question_order ?? [];
     const allowed = new Set(order);
 
-    // Upsert submitted selections (only for questions in this attempt).
-    for (const a of answers) {
-      if (!allowed.has(a.questionId)) continue;
-      const selected = a.selectedOption?.trim().toLowerCase() ?? null;
-      const { data: existing } = await db
-        .from("exam_answers")
-        .select("id")
-        .eq("attempt_id", attemptId)
-        .eq("question_id", a.questionId)
-        .maybeSingle();
-      if (existing) {
-        await db
+    // Upsert submitted selections (only for questions in this attempt). Skipped
+    // when the attempt has expired — late answers are not accepted.
+    if (!expired) {
+      for (const a of answers) {
+        if (!allowed.has(a.questionId)) continue;
+        const selected = a.selectedOption?.trim().toLowerCase() ?? null;
+        const { data: existing } = await db
           .from("exam_answers")
-          .update({ selected_option: selected, updated_at: now.toISOString() })
-          .eq("id", existing.id);
-      } else {
-        await db
-          .from("exam_answers")
-          .insert({ attempt_id: attemptId, question_id: a.questionId, selected_option: selected });
+          .select("id")
+          .eq("attempt_id", attemptId)
+          .eq("question_id", a.questionId)
+          .maybeSingle();
+        if (existing) {
+          await db
+            .from("exam_answers")
+            .update({ selected_option: selected, updated_at: now.toISOString() })
+            .eq("id", existing.id);
+        } else {
+          await db
+            .from("exam_answers")
+            .insert({ attempt_id: attemptId, question_id: a.questionId, selected_option: selected });
+        }
       }
     }
 
@@ -121,6 +128,6 @@ Deno.serve(async (req) => {
 
     return ok(undefined);
   } catch (error) {
-    return fail(error instanceof Error ? error.message : "Unexpected error.", 500);
+    return serverError("exam-submit", error);
   }
 });

@@ -5,7 +5,7 @@
 // check (the caller's JWT is forwarded by supabase-js functions.invoke).
 // Body: { applicationId, status, rejectionReason?, notes? } → { success }
 import { serviceClient } from "../_shared/client.ts";
-import { fail, handlePreflight, ok } from "../_shared/cors.ts";
+import { fail, handlePreflight, ok, serverError } from "../_shared/cors.ts";
 import { sendEmail, statusEmailHtml } from "../_shared/email.ts";
 
 const STATUSES = ["pending", "approved", "rejected"] as const;
@@ -57,7 +57,7 @@ Deno.serve(async (req) => {
         updated_at: new Date().toISOString(),
       })
       .eq("id", applicationId);
-    if (updateErr) return fail(updateErr.message);
+    if (updateErr) return serverError("review-application:update", updateErr);
 
     // Explicit audit log — service role means auth.uid() is null, so the table
     // trigger skips this; record the reviewing admin here.
@@ -96,6 +96,6 @@ Deno.serve(async (req) => {
 
     return ok({ emailed: true });
   } catch (error) {
-    return fail(error instanceof Error ? error.message : "Unexpected error.", 500);
+    return serverError("review-application", error);
   }
 });

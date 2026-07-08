@@ -5,7 +5,7 @@
 // a receipt. Fields mirror the legacy form; files: receipt, <doc keys>.
 // → { success, data: { applicationCode } }
 import { serviceClient } from "../_shared/client.ts";
-import { fail, handlePreflight, ok } from "../_shared/cors.ts";
+import { fail, handlePreflight, ok, serverError } from "../_shared/cors.ts";
 import { sendEmail } from "../_shared/email.ts";
 
 const DOCUMENTS_BUCKET = Deno.env.get("STORAGE_BUCKET_DOCUMENTS") ?? "documents";
@@ -26,6 +26,19 @@ const REQUIRED_FIELDS = [
   "gender", "address", "intendedClass", "guardianName",
   "guardianPhone", "guardianEmail",
 ] as const;
+
+// Per-field max lengths — reject oversized values before any upload/insert.
+const MAX_LEN: Record<string, number> = {
+  firstName: 80, lastName: 80, email: 160, phone: 32, dateOfBirth: 32,
+  gender: 20, address: 300, state: 80, lga: 80, intendedClass: 80,
+  previousSchool: 160, guardianName: 120, guardianPhone: 32, guardianEmail: 160,
+};
+const ALLOWED_GENDER = new Set(["male", "female"]);
+const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+
+// Per-IP submission throttle (fixed window, enforced by hit_rate_limit RPC).
+const SUBMIT_MAX = 5;
+const SUBMIT_WINDOW_SECONDS = 60 * 60; // 1 hour
 
 // Magic-byte sniffing (subset of legacy detectUploadType). Extend as needed.
 function detectType(bytes: Uint8Array): { ext: string; mime: string } | null {
@@ -51,6 +64,16 @@ Deno.serve(async (req) => {
     const db = serviceClient();
     const now = new Date();
 
+    // Throttle by client IP before doing any work (fail-open if the limiter
+    // itself errors — never block a legit applicant on limiter trouble).
+    const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || "unknown";
+    const { data: allowed } = await db.rpc("hit_rate_limit", {
+      p_key: `submit-application:${ip}`,
+      p_max: SUBMIT_MAX,
+      p_window_seconds: SUBMIT_WINDOW_SECONDS,
+    });
+    if (allowed === false) return fail("Too many submissions. Please try again later.", 429);
+
     // Active (open + in-window) period.
     const { data: periods } = await db
       .from("application_periods")
@@ -69,6 +92,18 @@ Deno.serve(async (req) => {
       if (!field(f)) return fail(`Missing required field: ${f}`);
     }
     const email = field("email").toLowerCase();
+
+    // Cheap field validation before any upload/insert/email.
+    for (const [k, max] of Object.entries(MAX_LEN)) {
+      if (field(k).length > max) return fail(`${k} is too long.`);
+    }
+    if (!EMAIL_RE.test(email)) return fail("A valid email is required.");
+    if (!EMAIL_RE.test(field("guardianEmail"))) return fail("A valid guardian email is required.");
+    if (!ALLOWED_GENDER.has(field("gender").toLowerCase())) return fail("Select a valid gender.");
+    const dob = new Date(field("dateOfBirth"));
+    if (Number.isNaN(dob.getTime()) || dob > now || dob < new Date("1900-01-01")) {
+      return fail("Enter a valid date of birth.");
+    }
 
     // Validate + read files.
     async function readFile(key: string, maxBytes: number, allowPdf: boolean) {
@@ -136,7 +171,7 @@ Deno.serve(async (req) => {
       status: "pending",
       submitted_at: now.toISOString(),
     });
-    if (insErr) return fail(insErr.message, 500);
+    if (insErr) return serverError("submit-application:insert", insErr);
 
     try {
       await sendEmail({
@@ -151,6 +186,6 @@ Deno.serve(async (req) => {
 
     return ok({ applicationCode });
   } catch (error) {
-    return fail(error instanceof Error ? error.message : "Unexpected error.", 500);
+    return serverError("submit-application", error);
   }
 });

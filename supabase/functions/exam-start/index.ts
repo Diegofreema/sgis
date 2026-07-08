@@ -4,7 +4,7 @@
 // correct_option / explanation. Answer secrecy lives here.
 // Body: { token } → { success, data: { attemptId, exam, questions, expiresAt } }
 import { serviceClient } from "../_shared/client.ts";
-import { fail, handlePreflight, ok } from "../_shared/cors.ts";
+import { fail, handlePreflight, ok, serverError } from "../_shared/cors.ts";
 import { getPublicExamWindow, shuffle } from "../_shared/exam-window.ts";
 import { getAssignedQuestions, resolveSession } from "../_shared/session.ts";
 
@@ -67,7 +67,7 @@ Deno.serve(async (req) => {
         })
         .select("id")
         .single();
-      if (error || !created) return fail(error?.message ?? "Could not start exam.");
+      if (error || !created) return serverError("exam-start:insert", error);
       attemptId = created.id;
     }
 
@@ -89,6 +89,6 @@ Deno.serve(async (req) => {
 
     return ok({ attemptId, expiresAt, exam, questions });
   } catch (error) {
-    return fail(error instanceof Error ? error.message : "Unexpected error.", 500);
+    return serverError("exam-start", error);
   }
 });

@@ -5,7 +5,7 @@
 // to an admin profile before doing anything.
 // Body: { email, password, firstName, lastName, phone? } → { userId }
 import { serviceClient } from "../_shared/client.ts";
-import { fail, handlePreflight, ok } from "../_shared/cors.ts";
+import { fail, handlePreflight, ok, serverError } from "../_shared/cors.ts";
 
 Deno.serve(async (req) => {
   const pre = handlePreflight(req);
@@ -46,9 +46,11 @@ Deno.serve(async (req) => {
       email_confirm: true,
     });
     if (createErr || !created?.user) {
-      const msg = createErr?.message ?? "Could not create the account.";
       // Supabase returns a 422-ish message for an existing email.
-      return fail(/already|exist|registered/i.test(msg) ? "That email is already registered." : msg);
+      if (/already|exist|registered/i.test(createErr?.message ?? "")) {
+        return fail("That email is already registered.");
+      }
+      return serverError("admin-create-user:createUser", createErr);
     }
     const newAuthId = created.user.id;
 
@@ -72,7 +74,7 @@ Deno.serve(async (req) => {
       .single();
     if (profileErr || !profile) {
       await db.auth.admin.deleteUser(newAuthId).catch(() => {});
-      return fail(profileErr?.message ?? "Could not create the profile.");
+      return serverError("admin-create-user:profileInsert", profileErr);
     }
 
     // Explicit audit log — this runs as the service role (auth.uid() is null),
@@ -88,6 +90,6 @@ Deno.serve(async (req) => {
 
     return ok({ userId: profile.id });
   } catch (error) {
-    return fail(error instanceof Error ? error.message : "Unexpected error.", 500);
+    return serverError("admin-create-user", error);
   }
 });

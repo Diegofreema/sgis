@@ -24,6 +24,16 @@ export function fail(error: string, status = 400): Response {
   return json({ success: false, error }, status);
 }
 
+/**
+ * Internal failure: log the real cause server-side (never sent to the client)
+ * and return an opaque message. Use for caught exceptions and DB/storage errors
+ * so Postgres/GoTrue/Storage internals don't leak to callers.
+ */
+export function serverError(context: string, cause: unknown, status = 500): Response {
+  console.error(`[${context}]`, cause);
+  return fail("Something went wrong. Please try again.", status);
+}
+
 export function handlePreflight(req: Request): Response | null {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });

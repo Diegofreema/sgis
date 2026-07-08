@@ -4,7 +4,7 @@
 // Body: { periodId, applicationCode, email }
 // → { success, data: { accessSessionId, maskedEmail, expiresAt } }
 import { serviceClient } from "../_shared/client.ts";
-import { fail, handlePreflight, ok } from "../_shared/cors.ts";
+import { fail, handlePreflight, ok, serverError } from "../_shared/cors.ts";
 import { getPublicExamWindow } from "../_shared/exam-window.ts";
 import { sendEmail, otpEmailHtml } from "../_shared/email.ts";
 import {
@@ -150,6 +150,6 @@ Deno.serve(async (req) => {
       expiresAt: codeExpiresAt.toISOString(),
     });
   } catch (error) {
-    return fail(error instanceof Error ? error.message : "Unexpected error.", 500);
+    return serverError("exam-access-request", error);
   }
 });
