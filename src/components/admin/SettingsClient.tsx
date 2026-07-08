@@ -59,6 +59,7 @@ import {
   updateApplicationPeriodStatus,
 } from "@/lib/admin-settings";
 import { updateAdmissionSettings, updateSchoolSettings } from "@/lib/admin-settings";
+import { updateExamWindow } from "@/lib/admin-exams";
 import type { BankAccount } from "@/lib/admin-settings";
 import type { AdmissionSettings } from "@/lib/queries";
 import type { ApplicationPeriod } from "@/lib/queries";
@@ -134,6 +135,8 @@ export function SettingsClient({
     title: "",
     applicationStartDate: "",
     applicationEndDate: "",
+    examStartDate: "",
+    examEndDate: "",
   });
 
   // Bank accounts state
@@ -258,6 +261,8 @@ export function SettingsClient({
       title: period.title,
       applicationStartDate: formatDateTimeInput(period.applicationStartDate),
       applicationEndDate: formatDateTimeInput(period.applicationEndDate),
+      examStartDate: formatDateTimeInput(period.examStartDate),
+      examEndDate: formatDateTimeInput(period.examEndDate),
     });
   }
 
@@ -268,6 +273,8 @@ export function SettingsClient({
       title: "",
       applicationStartDate: "",
       applicationEndDate: "",
+      examStartDate: "",
+      examEndDate: "",
     });
   }
 
@@ -289,6 +296,25 @@ export function SettingsClient({
       applicationStartDate: editPeriodForm.applicationStartDate,
       applicationEndDate: editPeriodForm.applicationEndDate,
     });
+
+    // Exam window lives on the period; reschedule it if the dates changed.
+    const examChanged =
+      editPeriodForm.examStartDate &&
+      editPeriodForm.examEndDate &&
+      (editPeriodForm.examStartDate !== formatDateTimeInput(editingPeriod.examStartDate) ||
+        editPeriodForm.examEndDate !== formatDateTimeInput(editingPeriod.examEndDate));
+    if (result.success && examChanged) {
+      const windowResult = await updateExamWindow({
+        periodId: editingPeriod.id,
+        examStartDate: editPeriodForm.examStartDate,
+        examEndDate: editPeriodForm.examEndDate,
+      });
+      if (!windowResult.success) {
+        setUpdatingPeriod(false);
+        toast.error(windowResult.error);
+        return;
+      }
+    }
     setUpdatingPeriod(false);
 
     if (!result.success) {
@@ -304,6 +330,12 @@ export function SettingsClient({
               title: editPeriodForm.title.trim(),
               applicationStartDate: new Date(editPeriodForm.applicationStartDate).toISOString(),
               applicationEndDate: new Date(editPeriodForm.applicationEndDate).toISOString(),
+              examStartDate: editPeriodForm.examStartDate
+                ? new Date(editPeriodForm.examStartDate).toISOString()
+                : period.examStartDate,
+              examEndDate: editPeriodForm.examEndDate
+                ? new Date(editPeriodForm.examEndDate).toISOString()
+                : period.examEndDate,
               updatedAt: new Date().toISOString(),
             }
           : period
@@ -910,9 +942,29 @@ export function SettingsClient({
                 />
               </div>
             </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-exam-start">Exam starts</Label>
+                <Input
+                  id="edit-exam-start"
+                  type="datetime-local"
+                  value={editPeriodForm.examStartDate}
+                  onChange={(event) => setEditPeriodField("examStartDate", event.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-exam-end">Exam ends</Label>
+                <Input
+                  id="edit-exam-end"
+                  type="datetime-local"
+                  value={editPeriodForm.examEndDate}
+                  onChange={(event) => setEditPeriodField("examEndDate", event.target.value)}
+                />
+              </div>
+            </div>
             {editingPeriod && (
               <p className="text-xs text-muted-foreground">
-                Exam dates, fee, and eligible classes stay as created for this flow.
+                Fee and eligible classes stay as created for this flow.
               </p>
             )}
           </div>

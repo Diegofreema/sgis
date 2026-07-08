@@ -10,6 +10,7 @@ import {
   HelpCircle,
   Image,
   LayoutDashboard,
+  ScrollText,
   Settings,
   UserCog,
   Users,
@@ -27,6 +28,7 @@ const adminNavItems = [
   // { href: '/admin/cms', label: 'CMS', icon: FileEdit },
   { href: '/admin/gallery', label: 'Gallery', icon: Image },
   { href: '/admin/users', label: 'Users', icon: UserCog },
+  { href: '/admin/activity', label: 'Activity Log', icon: ScrollText },
   { href: '/admin/settings', label: 'Settings', icon: Settings },
 ];
 

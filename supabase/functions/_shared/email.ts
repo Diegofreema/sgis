@@ -29,6 +29,29 @@ export async function sendEmail(input: {
   }
 }
 
+export function statusEmailHtml(input: {
+  applicantName: string;
+  applicationCode: string;
+  status: "pending" | "approved" | "rejected";
+  rejectionReason?: string;
+}): string {
+  const statusLabel =
+    input.status === "approved" ? "approved" : input.status === "rejected" ? "not approved" : "pending";
+  const extra =
+    input.status === "approved"
+      ? "You may now print your examination ID card from the application page."
+      : input.status === "rejected" && input.rejectionReason
+        ? `Reason: ${input.rejectionReason}`
+        : "Your application is still being reviewed.";
+  return `
+    <div style="font-family:system-ui,sans-serif;max-width:480px;margin:0 auto">
+      <h2>Application status update</h2>
+      <p>Dear <strong>${input.applicantName}</strong>,</p>
+      <p>Your application <strong>${input.applicationCode}</strong> is <strong>${statusLabel}</strong>.</p>
+      <p>${extra}</p>
+    </div>`;
+}
+
 export function otpEmailHtml(input: {
   applicantName: string;
   sessionTitle: string;

@@ -57,6 +57,7 @@ import {
   updateExamStatus,
   releaseResults,
   sendBulkResultEmails,
+  deleteExam,
 } from '@/lib/admin-exams';
 import { formatDate } from '@/lib/utils';
 import type { AdminExam as Exam } from '@/lib/admin-exams';
@@ -76,7 +77,8 @@ type PendingAction =
   | 'closed'
   | 'archived'
   | 'release-results'
-  | 'email-results';
+  | 'email-results'
+  | 'delete';
 
 const STATUS_COLORS: Record<string, string> = {
   draft: 'bg-muted text-muted-foreground',
@@ -283,11 +285,24 @@ export function ExamDetailClient({
       await handleStatusChange(action);
     } else if (action === 'release-results') {
       await handleReleaseResults();
+    } else if (action === 'delete') {
+      await handleDeleteExam();
     } else {
       await handleSendResults();
     }
 
     setPendingAction(null);
+  }
+
+  async function handleDeleteExam() {
+    if (!exam) return;
+    const result = await deleteExam(exam.id);
+    if (!result.success) {
+      toast.error(result.error);
+      return;
+    }
+    toast.success('Exam deleted.');
+    navigate({ to: '/admin/exams' });
   }
 
   async function handleAssignQuestion() {
@@ -467,6 +482,17 @@ export function ExamDetailClient({
             >
               <Archive className="h-4 w-4" />
               Archive
+            </Button>
+          )}
+          {!isNew && (
+            <Button
+              variant="outline"
+              onClick={() => setPendingAction('delete')}
+              disabled={statusUpdating}
+              className="gap-2 cursor-pointer border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete
             </Button>
           )}
           <Button
@@ -928,7 +954,9 @@ export function ExamDetailClient({
                     ? 'Archive exam?'
                     : pendingAction === 'release-results'
                       ? 'Release results?'
-                      : 'Email results?'}
+                      : pendingAction === 'delete'
+                        ? 'Delete exam?'
+                        : 'Email results?'}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {pendingAction === 'active'
@@ -939,7 +967,9 @@ export function ExamDetailClient({
                     ? 'This exam will be moved out of normal circulation and hidden from active use.'
                     : pendingAction === 'release-results'
                       ? 'Applicants who have completed this exam will be able to see their published results.'
-                      : 'This will send result emails to applicants with releasable results for this exam.'}
+                      : pendingAction === 'delete'
+                        ? 'This permanently deletes the exam and its question assignments. Exams with recorded attempts cannot be deleted.'
+                        : 'This will send result emails to applicants with releasable results for this exam.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -952,7 +982,7 @@ export function ExamDetailClient({
               onClick={confirmPendingAction}
               disabled={statusUpdating || releasingResults || sendingResults}
               className={
-                pendingAction === 'archived'
+                pendingAction === 'archived' || pendingAction === 'delete'
                   ? 'bg-destructive hover:bg-destructive/90'
                   : undefined
               }
@@ -970,6 +1000,8 @@ export function ExamDetailClient({
                 'Archive'
               ) : pendingAction === 'release-results' ? (
                 'Release Results'
+              ) : pendingAction === 'delete' ? (
+                'Delete'
               ) : (
                 'Send Emails'
               )}

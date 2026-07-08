@@ -89,6 +89,15 @@ export async function login({
     return { success: false, error: "Only admin accounts can sign in here." };
   }
 
+  // First-login / admin-provisioned accounts must set their own password before
+  // reaching the console. The admin guard enforces the same rule on direct nav.
+  if (profile.requiresPasswordChange) {
+    return {
+      success: true,
+      data: { redirectTo: "/change-password", message: "Set a new password to continue." },
+    };
+  }
+
   return { success: true, data: { redirectTo: getPostAuthPath(), message: "Welcome back!" } };
 }
 
@@ -108,6 +117,20 @@ export async function updatePassword({
 }): Promise<ActionResult<{ redirectTo: string }>> {
   const { error } = await supabase.auth.updateUser({ password });
   if (error) return { success: false, error: error.message };
+
+  // Clear the first-login flag so the change-password gate stops firing.
+  // Best-effort: the password itself already changed; RLS lets the admin update
+  // their own profile row.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (user) {
+    await supabase
+      .from("profiles")
+      .update({ requires_password_change: false, password_changed_at: new Date().toISOString() })
+      .eq("auth_user_id", user.id);
+  }
+
   return { success: true, data: { redirectTo: getPostAuthPath() } };
 }
 

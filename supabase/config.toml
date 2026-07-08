@@ -24,3 +24,11 @@ verify_jwt = false
 
 [functions.exam-discovery]
 verify_jwt = false
+
+# Admin-only: requires a valid Supabase JWT; the function additionally checks
+# the caller's profile role is admin.
+[functions.review-application]
+verify_jwt = true
+
+[functions.admin-create-user]
+verify_jwt = true

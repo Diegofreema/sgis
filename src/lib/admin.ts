@@ -267,3 +267,59 @@ export async function getAdminUsers(): Promise<AdminUser[]> {
   if (error) throw error;
   return (data as unknown as AdminUser[]) ?? [];
 }
+
+// Create another admin account. Runs through the `admin-create-user` Edge
+// Function (service role) — auth-user creation + profile insert need the
+// service role and can't happen on the browser client. Admin-gated server-side.
+export async function createAdminUser(input: {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  phone?: string;
+}): Promise<ActionResult> {
+  const { data, error } = await supabase.functions.invoke("admin-create-user", { body: input });
+  if (error) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const ctxBody = await (error as any)?.context?.json?.().catch(() => null);
+    return { success: false, error: ctxBody?.error ?? error.message ?? "Could not create the admin." };
+  }
+  if (data && data.success === false) {
+    return { success: false, error: data.error ?? "Could not create the admin." };
+  }
+  return { success: true, data: undefined };
+}
+
+// ─── Activity log (audit trail) ─────────────────────────────────────────────
+
+export type ActivityLog = {
+  id: string;
+  action: string;
+  entityType: string | null;
+  entityId: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+  actor: { firstName: string | null; lastName: string | null; email: string } | null;
+};
+
+const ACTIVITY_COLS =
+  "id, action, entityType:entity_type, entityId:entity_id, metadata, createdAt:created_at, actor:profiles!activity_logs_actor_id_fkey(firstName:first_name, lastName:last_name, email)";
+
+export async function getActivityLogs(
+  page = 1,
+  pageSize = 20,
+): Promise<{ logs: ActivityLog[]; total: number }> {
+  const from = (Math.max(page, 1) - 1) * pageSize;
+  const { data, error, count } = await supabase
+    .from("activity_logs")
+    .select(ACTIVITY_COLS, { count: "exact" })
+    .order("created_at", { ascending: false })
+    .range(from, from + pageSize - 1);
+  if (error) throw error;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const logs = ((data as any[]) ?? []).map((r) => ({
+    ...r,
+    actor: Array.isArray(r.actor) ? (r.actor[0] ?? null) : r.actor,
+  })) as ActivityLog[];
+  return { logs, total: count ?? 0 };
+}

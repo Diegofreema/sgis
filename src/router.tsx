@@ -20,13 +20,16 @@ import { ForgotPasswordPage } from "@/pages/auth/ForgotPasswordPage";
 import { RegisterPage } from "@/pages/auth/RegisterPage";
 import { VerifyEmailPage } from "@/pages/auth/VerifyEmailPage";
 import { ResetPasswordPage } from "@/pages/auth/ResetPasswordPage";
+import { ChangePasswordPage } from "@/pages/auth/ChangePasswordPage";
 import { AdminLayout } from "@/pages/admin/AdminLayout";
 import { AdminDashboard } from "@/pages/admin/AdminDashboard";
 import { AnnouncementsPage } from "@/pages/admin/AnnouncementsPage";
 import { AdminGalleryPage } from "@/pages/admin/AdminGalleryPage";
 import { AdminSettingsPage } from "@/pages/admin/AdminSettingsPage";
 import { AdminApplicantsPage } from "@/pages/admin/AdminApplicantsPage";
+import { ApplicantDetailPage } from "@/pages/admin/ApplicantDetailPage";
 import { AdminUsersPage } from "@/pages/admin/AdminUsersPage";
+import { ActivityLogPage } from "@/pages/admin/ActivityLogPage";
 import { AdminQuestionBankPage } from "@/pages/admin/AdminQuestionBankPage";
 import { AdminExamsPage } from "@/pages/admin/AdminExamsPage";
 import { AdminExamDetailPage } from "@/pages/admin/AdminExamDetailPage";
@@ -166,6 +169,19 @@ const resetPasswordRoute = createRoute({
   component: ResetPasswordPage,
 });
 
+// First-login password gate — requires a session; a fully-set-up user is sent
+// on to the console.
+const changePasswordRoute = createRoute({
+  getParentRoute: () => accountLayoutRoute,
+  path: "/change-password",
+  component: ChangePasswordPage,
+  beforeLoad: async () => {
+    const profile = await getCurrentProfile();
+    if (!profile) throw redirect({ to: "/login" });
+    if (!profile.requiresPasswordChange) throw redirect({ to: "/admin" });
+  },
+});
+
 // ─── Admin route group (app/(admin)/layout.tsx) — admin-only guard ─────
 const adminLayoutRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -176,6 +192,10 @@ const adminLayoutRoute = createRoute({
     const profile = await getCurrentProfile();
     if (!profile || profile.role !== "admin") {
       throw redirect({ to: "/login" });
+    }
+    // Admin-provisioned accounts must set their own password first.
+    if (profile.requiresPasswordChange) {
+      throw redirect({ to: "/change-password" });
     }
   },
 });
@@ -221,10 +241,25 @@ const adminApplicantsRoute = createRoute({
   component: AdminApplicantsPage,
 });
 
+const adminApplicantDetailRoute = createRoute({
+  getParentRoute: () => adminLayoutRoute,
+  path: "/applicants/$id",
+  component: ApplicantDetailPage,
+});
+
 const adminUsersRoute = createRoute({
   getParentRoute: () => adminLayoutRoute,
   path: "/users",
   component: AdminUsersPage,
+});
+
+const adminActivityRoute = createRoute({
+  getParentRoute: () => adminLayoutRoute,
+  path: "/activity",
+  validateSearch: (search: Record<string, unknown>): { page?: number } => ({
+    page: search.page ? Number(search.page) : undefined,
+  }),
+  component: ActivityLogPage,
 });
 
 const adminQuestionBankRoute = createRoute({
@@ -275,14 +310,16 @@ const routeTree = rootRoute.addChildren([
     examStartRoute,
   ]),
   authLayoutRoute.addChildren([loginRoute, forgotPasswordRoute, registerRoute]),
-  accountLayoutRoute.addChildren([verifyEmailRoute, resetPasswordRoute]),
+  accountLayoutRoute.addChildren([verifyEmailRoute, resetPasswordRoute, changePasswordRoute]),
   adminLayoutRoute.addChildren([
     adminDashboardRoute,
     adminAnnouncementsRoute,
     adminGalleryRoute,
     adminSettingsRoute,
     adminApplicantsRoute,
+    adminApplicantDetailRoute,
     adminUsersRoute,
+    adminActivityRoute,
     adminQuestionBankRoute,
     adminExamsRoute,
     adminExamDetailRoute,

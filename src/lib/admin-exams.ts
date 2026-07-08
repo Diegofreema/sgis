@@ -252,6 +252,26 @@ export async function updateExamStatus(
   return { success: true, data: undefined };
 }
 
+// Hard-delete an exam and its question links. Blocked while attempts exist so
+// a graded exam's history is never silently destroyed.
+export async function deleteExam(examId: string): Promise<ActionResult> {
+  const { count } = await supabase
+    .from("exam_attempts")
+    .select("id", { count: "exact", head: true })
+    .eq("exam_id", examId);
+  if ((count ?? 0) > 0) {
+    return {
+      success: false,
+      error: "This exam has attempts and cannot be deleted. Archive it instead.",
+    };
+  }
+  const { error: linkErr } = await supabase.from("exam_questions").delete().eq("exam_id", examId);
+  if (linkErr) return { success: false, error: linkErr.message };
+  const { error } = await supabase.from("exams").delete().eq("id", examId);
+  if (error) return { success: false, error: error.message };
+  return { success: true, data: undefined };
+}
+
 async function getAssignedQuestionIds(examId: string): Promise<string[]> {
   const { data } = await supabase.from("exam_questions").select("question_id").eq("exam_id", examId);
   return (data ?? []).map((r) => r.question_id);
