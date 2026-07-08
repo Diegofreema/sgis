@@ -1,0 +1,11 @@
+-- ============================================================================
+-- Lock hit_rate_limit to the service role only.
+-- ----------------------------------------------------------------------------
+-- Supabase's default privileges auto-grant EXECUTE on new public functions to
+-- anon + authenticated, so the `revoke ... from public` in 20260708020000 left
+-- those two able to call it. hit_rate_limit is SECURITY DEFINER and writes to
+-- rate_limits, so a direct anon caller could pre-inflate another IP's counter
+-- and lock a legitimate applicant out. Only Edge Functions (service role) need
+-- it — revoke the rest.
+-- ============================================================================
+revoke execute on function public.hit_rate_limit(text, integer, integer) from anon, authenticated;
