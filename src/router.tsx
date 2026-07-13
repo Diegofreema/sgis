@@ -12,6 +12,7 @@ import { AdmissionsPage } from "@/pages/AdmissionsPage";
 import { ContactPage } from "@/pages/ContactPage";
 import { FAQPage } from "@/pages/FAQPage";
 import { GalleryPage } from "@/pages/GalleryPage";
+import { NewsPage } from "@/pages/NewsPage";
 import { NewsArticlePage } from "@/pages/NewsArticlePage";
 import { EntranceExamPage } from "@/pages/EntranceExamPage";
 import { ExamPreviewPage } from "@/pages/ExamPreviewPage";
@@ -36,6 +37,8 @@ import { AdminQuestionBankPage } from "@/pages/admin/AdminQuestionBankPage";
 import { AdminExamsPage } from "@/pages/admin/AdminExamsPage";
 import { AdminExamDetailPage } from "@/pages/admin/AdminExamDetailPage";
 import { AdminExamResultsPage } from "@/pages/admin/AdminExamResultsPage";
+import { AdminTestimonialsPage } from "@/pages/admin/AdminTestimonialsPage";
+import { AdminNewsPage } from "@/pages/admin/AdminNewsPage";
 import { AdminError } from "@/components/admin/AdminError";
 
 // ─── Public route group (app/(public)/layout.tsx) ──────────────────────
@@ -85,8 +88,12 @@ const galleryRoute = createRoute({
   errorComponent: GalleryError,
 });
 
-// Note: legacy /news list is intentionally 404 (hide=true → notFound()); we
-// preserve that by not defining a /news route — it falls to NotFound.
+const newsRoute = createRoute({
+  getParentRoute: () => publicLayoutRoute,
+  path: "/news",
+  component: NewsPage,
+});
+
 const newsArticleRoute = createRoute({
   getParentRoute: () => publicLayoutRoute,
   path: "/news/$slug",
@@ -223,6 +230,12 @@ const adminAnnouncementsRoute = createRoute({
   component: AnnouncementsPage,
 });
 
+const adminNewsRoute = createRoute({
+  getParentRoute: () => adminLayoutRoute,
+  path: "/news",
+  component: AdminNewsPage,
+});
+
 const adminGalleryRoute = createRoute({
   getParentRoute: () => adminLayoutRoute,
   path: "/gallery",
@@ -230,6 +243,12 @@ const adminGalleryRoute = createRoute({
     page: search.page ? Number(search.page) : undefined,
   }),
   component: AdminGalleryPage,
+});
+
+const adminTestimonialsRoute = createRoute({
+  getParentRoute: () => adminLayoutRoute,
+  path: "/testimonials",
+  component: AdminTestimonialsPage,
 });
 
 const adminSettingsRoute = createRoute({
@@ -319,6 +338,7 @@ const routeTree = rootRoute.addChildren([
     contactRoute,
     faqRoute,
     galleryRoute,
+    newsRoute,
     newsArticleRoute,
     entranceExamRoute,
     examPreviewRoute,
@@ -329,7 +349,9 @@ const routeTree = rootRoute.addChildren([
   adminLayoutRoute.addChildren([
     adminDashboardRoute,
     adminAnnouncementsRoute,
+    adminNewsRoute,
     adminGalleryRoute,
+    adminTestimonialsRoute,
     adminSettingsRoute,
     adminApplicantsRoute,
     adminApplicantDetailRoute,

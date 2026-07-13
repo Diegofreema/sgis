@@ -71,6 +71,16 @@ export type Announcement = {
   updatedAt: string;
 };
 
+export type Testimonial = {
+  id: string;
+  parentName: string;
+  content: string;
+  isPublished: boolean;
+  createdBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type CarouselSlide = {
   id: string;
   title: string;

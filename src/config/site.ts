@@ -20,11 +20,15 @@ export const siteConfig = {
     { days: "Sunday", hours: "Closed" },
   ],
   social: {
-    twitter: "https://twitter.com/sanktgeorgis",
-    facebook: "https://facebook.com/sanktgeorgis",
-    instagram: "https://instagram.com/sanktgeorgis",
-    linkedin: "https://linkedin.com/school/sanktgeorgis",
+    facebook: "https://www.facebook.com/share/1EoKUKCR85/",
+    instagram: "https://www.instagram.com/sanktgeorginternational?igsh=MXFncmIwOTYxZTdqag==",
+    twitter: "",
+    linkedin: "",
   },
+  whatsapp: [
+    { label: "09023453660", href: "https://wa.me/2349023453660" },
+    { label: "09165573514", href: "https://wa.me/2349165573514" },
+  ],
   admissionsEmail: "sanktgeorginternationalschool@gmail.com",
   supportEmail: "sanktgeorginternationalschool@gmail.com",
 } as const;

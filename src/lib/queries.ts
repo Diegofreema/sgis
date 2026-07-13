@@ -1,6 +1,6 @@
 import { supabase } from "@/lib/supabase/client";
 import { siteConfig } from "@/config/site";
-import type { Announcement, NewsArticle, GalleryItem, StaffMember } from "@/types/cms";
+import type { Announcement, NewsArticle, GalleryItem, StaffMember, Testimonial } from "@/types/cms";
 
 /**
  * Browser data layer — replaces legacy server/queries/* for the Vite SPA.
@@ -25,6 +25,9 @@ const STAFF_COLS =
 const ANNOUNCEMENT_COLS =
   "id, title, slug, body, excerpt, audience, isImportant:is_important, status, publishedAt:published_at, createdBy:created_by, createdAt:created_at, updatedAt:updated_at";
 
+const TESTIMONIAL_COLS =
+  "id, parentName:parent_name, content, isPublished:is_published, createdBy:created_by, createdAt:created_at, updatedAt:updated_at";
+
 const SETTINGS_COLS =
   "id, singletonKey:singleton_key, isOpen:is_open, academicSession:academic_session, applicationDeadline:application_deadline, notes, schoolName:school_name, schoolEmail:school_email, schoolPhone:school_phone, maintenanceMode:maintenance_mode, updatedBy:updated_by, updatedAt:updated_at";
 
@@ -43,6 +46,17 @@ export async function getActiveAnnouncement(): Promise<Announcement | null> {
     .limit(1);
   if (error) throw error;
   return (data?.[0] as unknown as Announcement) ?? null;
+}
+
+export async function listPublishedTestimonials(limit = 10): Promise<Testimonial[]> {
+  const { data, error } = await supabase
+    .from("testimonials")
+    .select(TESTIMONIAL_COLS)
+    .eq("is_published", true)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return (data as unknown as Testimonial[]) ?? [];
 }
 
 export async function listNewsArticles(

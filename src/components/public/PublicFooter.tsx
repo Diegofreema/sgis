@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import Link from '@/lib/compat/link';
-import { Mail, Phone, MapPin, Globe } from 'lucide-react';
+import { Mail, MessageCircle, Phone, MapPin } from 'lucide-react';
 import { siteConfig } from '@/config/site';
 import { publicNav } from '@/config/navigation';
 import { getPublicSchoolSettings } from '@/lib/queries';
@@ -14,6 +14,25 @@ const footerLinks = {
     { label: 'News', href: '/news' },
   ],
 };
+
+function InstagramIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      className="h-5 w-5"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+    >
+      <rect x="3" y="3" width="18" height="18" rx="5" />
+      <circle cx="12" cy="12" r="4" />
+      <circle cx="17.5" cy="6.5" r="0.75" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
 
 export function PublicFooter() {
   const [{ schoolEmail, schoolPhone }, setContact] = useState<{
@@ -60,22 +79,22 @@ export function PublicFooter() {
             {/* Socials */}
             <div className="flex items-center gap-2">
               {[
-                { href: siteConfig.social.facebook, label: 'Facebook' },
-                { href: siteConfig.social.instagram, label: 'Instagram' },
-                { href: siteConfig.social.twitter, label: 'X / Twitter' },
-                { href: siteConfig.social.linkedin, label: 'LinkedIn' },
+                { href: siteConfig.social.facebook, label: 'Facebook', short: 'f' },
+                { href: siteConfig.social.instagram, label: 'Instagram', short: null },
+                { href: siteConfig.social.twitter, label: 'X / Twitter', short: 'X' },
+                { href: siteConfig.social.linkedin, label: 'LinkedIn', short: 'in' },
               ]
                 .filter(({ href }) => href)
-                .map(({ href, label }) => (
+                .map(({ href, label, short }) => (
                   <a
                     key={href}
                     href={href}
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label={label}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:text-primary hover:bg-accent transition-colors text-xs font-bold"
+                    className="flex h-10 w-10 items-center justify-center rounded-xl text-muted-foreground hover:text-primary hover:bg-accent transition-colors text-base font-bold"
                   >
-                    <Globe className="h-4 w-4" />
+                    {label === 'Instagram' ? <InstagramIcon /> : short}
                   </a>
                 ))}
             </div>
@@ -141,6 +160,23 @@ export function PublicFooter() {
                   {schoolPhone}
                 </a>
               </li>
+              <li className="flex items-start gap-2.5">
+                <MessageCircle className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                <span className="flex flex-wrap gap-x-2 gap-y-1 text-sm text-muted-foreground">
+                  WhatsApp:
+                  {siteConfig.whatsapp.map((item) => (
+                    <a
+                      key={item.href}
+                      href={item.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:text-primary transition-colors"
+                    >
+                      {item.label}
+                    </a>
+                  ))}
+                </span>
+              </li>
               <li className="flex items-center gap-2.5">
                 <Mail className="h-4 w-4 text-primary shrink-0" />
                 <a
@@ -175,6 +211,15 @@ export function PublicFooter() {
           </div>
         </div>
       </div>
+      <a
+        href={siteConfig.whatsapp[0].href}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Chat with us on WhatsApp"
+        className="fixed bottom-5 right-5 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-brand-lg transition-transform hover:scale-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#25D366]"
+      >
+        <MessageCircle className="h-7 w-7" />
+      </a>
     </footer>
   );
 }

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { AnnouncementsStream } from "@/components/home/AnnouncementsStream";
 import { NewsStream } from "@/components/home/NewsStream";
 import { GalleryStream } from "@/components/home/GalleryStream";
+import { TestimonialsStream } from "@/components/home/TestimonialsStream";
 
 export function HomePage() {
   return (
@@ -133,6 +134,7 @@ export function HomePage() {
 
       {/* Streamed sections */}
       <NewsStream />
+      <TestimonialsStream />
       <GalleryStream />
     </>
   );

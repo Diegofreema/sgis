@@ -1,13 +1,19 @@
 import { supabase } from "@/lib/supabase/client";
 import { getCurrentProfile, type ActionResult } from "@/lib/auth";
 import slugify from "slugify";
-import type { Announcement, StaffMember } from "@/types/cms";
+import type { Announcement, NewsArticle, StaffMember, Testimonial } from "@/types/cms";
 
 const ANNOUNCEMENT_COLS =
   "id, title, slug, body, excerpt, audience, isImportant:is_important, status, publishedAt:published_at, createdBy:created_by, createdAt:created_at, updatedAt:updated_at";
 
+const NEWS_COLS =
+  "id, title, slug, featuredImageUrl:featured_image_url, excerpt, body, author, status, publishedAt:published_at, seoTitle:seo_title, seoDescription:seo_description, createdBy:created_by, createdAt:created_at, updatedAt:updated_at";
+
 const STAFF_COLS =
   "id, name, role, imageUrl:image_url, isActive:is_active, sortOrder:sort_order, createdBy:created_by, createdAt:created_at, updatedAt:updated_at";
+
+const TESTIMONIAL_COLS =
+  "id, parentName:parent_name, content, isPublished:is_published, createdBy:created_by, createdAt:created_at, updatedAt:updated_at";
 
 /**
  * Admin data layer — supabase-js as the authenticated admin, gated by the
@@ -160,6 +166,147 @@ export async function deleteAnnouncement(id: string): Promise<ActionResult> {
     .eq("id", id);
   if (error) return { success: false, error: error.message };
   if (!count) return { success: false, error: "Announcement not found." };
+  return { success: true, data: undefined };
+}
+
+// ─── News CRUD (admin RLS) ─────────────────────────────────────────
+
+export async function listAllNewsArticles(): Promise<NewsArticle[]> {
+  const { data, error } = await supabase
+    .from("news_articles")
+    .select(NEWS_COLS)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data as unknown as NewsArticle[]) ?? [];
+}
+
+type NewsInput = {
+  title: string;
+  excerpt?: string;
+  body: string;
+  author?: string;
+  featuredImageUrl?: string;
+  status: "draft" | "published" | "archived";
+};
+
+export async function createNewsArticle(
+  input: NewsInput,
+): Promise<ActionResult<{ id: string }>> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { success: false, error: "Not authorized." };
+
+  const slug = slugify(input.title, { lower: true, strict: true }) + "-" + Date.now();
+  const { data, error } = await supabase
+    .from("news_articles")
+    .insert({
+      title: input.title,
+      slug,
+      excerpt: input.excerpt || null,
+      body: input.body,
+      author: input.author || null,
+      featured_image_url: input.featuredImageUrl || null,
+      status: input.status,
+      created_by: profile.id,
+      published_at: input.status === "published" ? new Date().toISOString() : null,
+    })
+    .select("id")
+    .single();
+  if (error) return { success: false, error: error.message };
+  return { success: true, data: { id: data.id } };
+}
+
+export async function updateNewsArticle(
+  id: string,
+  input: NewsInput,
+): Promise<ActionResult> {
+  const { error } = await supabase
+    .from("news_articles")
+    .update({
+      title: input.title,
+      excerpt: input.excerpt || null,
+      body: input.body,
+      author: input.author || null,
+      featured_image_url: input.featuredImageUrl || null,
+      status: input.status,
+      published_at: input.status === "published" ? new Date().toISOString() : null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id);
+  if (error) return { success: false, error: error.message };
+  return { success: true, data: undefined };
+}
+
+export async function deleteNewsArticle(id: string): Promise<ActionResult> {
+  const { error, count } = await supabase
+    .from("news_articles")
+    .delete({ count: "exact" })
+    .eq("id", id);
+  if (error) return { success: false, error: error.message };
+  if (!count) return { success: false, error: "News article not found." };
+  return { success: true, data: undefined };
+}
+
+// ─── Testimonials CRUD (admin RLS) ─────────────────────────────────
+
+export async function listAllTestimonials(): Promise<Testimonial[]> {
+  const { data, error } = await supabase
+    .from("testimonials")
+    .select(TESTIMONIAL_COLS)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data as unknown as Testimonial[]) ?? [];
+}
+
+type TestimonialInput = {
+  parentName: string;
+  content: string;
+  isPublished: boolean;
+};
+
+export async function createTestimonial(
+  input: TestimonialInput,
+): Promise<ActionResult<{ id: string }>> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { success: false, error: "Not authorized." };
+
+  const { data, error } = await supabase
+    .from("testimonials")
+    .insert({
+      parent_name: input.parentName,
+      content: input.content,
+      is_published: input.isPublished,
+      created_by: profile.id,
+    })
+    .select("id")
+    .single();
+  if (error) return { success: false, error: error.message };
+  return { success: true, data: { id: data.id } };
+}
+
+export async function updateTestimonial(
+  id: string,
+  input: TestimonialInput,
+): Promise<ActionResult> {
+  const { error } = await supabase
+    .from("testimonials")
+    .update({
+      parent_name: input.parentName,
+      content: input.content,
+      is_published: input.isPublished,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id);
+  if (error) return { success: false, error: error.message };
+  return { success: true, data: undefined };
+}
+
+export async function deleteTestimonial(id: string): Promise<ActionResult> {
+  const { error, count } = await supabase
+    .from("testimonials")
+    .delete({ count: "exact" })
+    .eq("id", id);
+  if (error) return { success: false, error: error.message };
+  if (!count) return { success: false, error: "Testimonial not found." };
   return { success: true, data: undefined };
 }
 

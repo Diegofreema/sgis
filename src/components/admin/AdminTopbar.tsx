@@ -24,8 +24,10 @@ const routeLabels: Record<string, string> = {
   "/admin/exams": "Examinations",
   "/admin/question-bank": "Question Bank",
   "/admin/announcements": "Announcements",
+  "/admin/news": "News",
   "/admin/cms": "Content Management",
   "/admin/gallery": "Gallery",
+  "/admin/testimonials": "Testimonials",
   "/admin/users": "Users",
   "/admin/settings": "Settings",
 };
