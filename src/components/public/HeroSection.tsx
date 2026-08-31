@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Image from '@/lib/compat/image';
 import Link from '@/lib/compat/link';
@@ -29,7 +28,7 @@ const slides = [
   {
     // TODO: replace with actual SGIS campus photo
     image: '/air-view.webp',
-    badge: 'Admissions Open · 2025–2026',
+    badge: 'Admissions Open · 2026–2027',
     lines: ['Where Excellence', 'Meets'],
     accent: 'Global Vision',
     body: 'Sankt Georg International School nurtures curious, compassionate, and critical thinkers — preparing students for leading universities and meaningful lives.',
@@ -108,7 +107,7 @@ export function HeroSection() {
   return (
     <section
       ref={sectionRef}
-      className="relative h-[78svh] min-h-[32rem] overflow-hidden md:h-screen"
+      className="relative h-[78svh] min-h-128 overflow-hidden md:h-screen"
       aria-label="Hero carousel"
     >
       {/* ──────────────────────────────────────────────────────────
@@ -118,7 +117,7 @@ export function HeroSection() {
       ─────────────────────────────────────────────────────────── */}
       <motion.div
         aria-hidden
-        className="absolute inset-x-0 -top-[10%] h-[120%] pointer-events-none md:-top-[25%] md:h-[150%]"
+        className="absolute inset-x-0 top-[-10%] h-[120%] pointer-events-none md:top-[-25%] md:h-[150%]"
         style={{ y: bgY }}
       >
         {/* Sliding images */}
