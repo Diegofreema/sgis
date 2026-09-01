@@ -20,7 +20,7 @@ function InstagramIcon() {
     <svg
       viewBox="0 0 24 24"
       aria-hidden="true"
-      className="h-5 w-5"
+      className="h-6 w-6"
       fill="none"
       stroke="currentColor"
       strokeLinecap="round"
@@ -115,7 +115,7 @@ export function PublicFooter() {
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label={label}
-                    className="flex h-10 w-10 items-center justify-center rounded-xl text-muted-foreground hover:text-primary hover:bg-accent transition-colors text-base font-bold"
+                    className="flex h-10 w-10 items-center justify-center rounded-xl text-muted-foreground hover:text-primary hover:bg-accent transition-colors text-2xl font-bold"
                   >
                     {label === 'Instagram' ? <InstagramIcon /> : short}
                   </a>
