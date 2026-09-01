@@ -1,13 +1,13 @@
 import Image from '@/lib/compat/image';
 
-export const BrandLogo = () => {
+export const BrandLogo = ({ className = 'h-5 w-5' }: { className?: string }) => {
   return (
     <Image
       src="/logo.jpeg"
       alt="Logo"
-      className="h-5 w-5"
-      width={20}
-      height={20}
+      className={className}
+      width={40}
+      height={40}
     />
   );
 };

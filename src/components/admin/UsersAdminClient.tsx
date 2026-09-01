@@ -33,7 +33,7 @@ type UserRow = {
 
 type Props = { users: UserRow[]; onCreated?: () => void };
 
-const EMPTY_FORM = { firstName: "", lastName: "", email: "", phone: "", password: "" };
+const EMPTY_FORM = { firstName: "", lastName: "", email: "", phone: "" };
 
 export function UsersAdminClient({ users: initialUsers, onCreated }: Props) {
   const [search, setSearch] = useState("");
@@ -63,15 +63,9 @@ export function UsersAdminClient({ users: initialUsers, onCreated }: Props) {
       toast.error("Enter a valid email.");
       return;
     }
-    if (form.password.length < 8) {
-      toast.error("Password must be at least 8 characters.");
-      return;
-    }
-
     setSaving(true);
     const result = await createAdminUser({
       email: form.email.trim(),
-      password: form.password,
       firstName: form.firstName.trim(),
       lastName: form.lastName.trim(),
       phone: form.phone.trim() || undefined,
@@ -82,7 +76,7 @@ export function UsersAdminClient({ users: initialUsers, onCreated }: Props) {
       toast.error(result.error);
       return;
     }
-    toast.success("Admin account created.");
+    toast.success("Admin created. A setup link has been emailed to them.");
     setForm(EMPTY_FORM);
     setOpen(false);
     onCreated?.();
@@ -126,8 +120,8 @@ export function UsersAdminClient({ users: initialUsers, onCreated }: Props) {
             <DialogHeader>
               <DialogTitle>Add admin</DialogTitle>
               <DialogDescription>
-                Creates a new admin account. Share the password securely — they should change it
-                after first sign-in.
+                Creates a new admin account. They receive an email with a link to set their own
+                password.
               </DialogDescription>
             </DialogHeader>
 
@@ -167,17 +161,6 @@ export function UsersAdminClient({ users: initialUsers, onCreated }: Props) {
                   value={form.phone}
                   onChange={(e) => set("phone", e.target.value)}
                 />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="admin-password">Temporary password</Label>
-                <Input
-                  id="admin-password"
-                  type="password"
-                  autoComplete="new-password"
-                  value={form.password}
-                  onChange={(e) => set("password", e.target.value)}
-                />
-                <p className="text-xs text-muted-foreground">At least 8 characters.</p>
               </div>
             </div>
 

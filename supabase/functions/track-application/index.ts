@@ -48,7 +48,8 @@ Deno.serve(async (req) => {
 
     const { data: attempt } = await db
       .from("exam_attempts")
-      .select("id, status, score, totalMarks:total_marks, passed")
+      // Scores stay admin-only — applicants get the attempt status, never the result.
+      .select("id, status")
       .eq("application_id", application.id)
       .eq("exam_id", exam.id)
       .maybeSingle();

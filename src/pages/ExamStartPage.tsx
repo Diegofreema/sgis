@@ -123,7 +123,7 @@ export function ExamStartPage() {
               <CheckCircle2 className="mx-auto h-12 w-12 text-success" />
               <p className="font-serif text-xl font-semibold text-foreground">Exam submitted</p>
               <p className="text-sm text-muted-foreground">
-                Your answers have been recorded. Track your result from the entrance exam page using your application ID.
+                Your answers have been recorded. Results are not published here — the school will contact you.
               </p>
               <Button asChild>
                 <Link href="/entrance-exam#status">Track application</Link>

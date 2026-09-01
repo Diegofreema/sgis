@@ -68,3 +68,23 @@ export function otpEmailHtml(input: {
       <p>This code expires in ${input.expiresInMinutes} minutes.</p>
     </div>`;
 }
+
+export function adminWelcomeEmailHtml(input: {
+  firstName: string;
+  email: string;
+  setupUrl: string;
+}): string {
+  return `
+    <div style="font-family:system-ui,sans-serif;max-width:480px;margin:0 auto">
+      <h2>Your admin account is ready</h2>
+      <p>Hello ${input.firstName},</p>
+      <p>An administrator account has been created for <strong>${input.email}</strong>.</p>
+      <p>Choose your password to finish setting it up:</p>
+      <p><a href="${input.setupUrl}"
+            style="display:inline-block;padding:12px 20px;border-radius:8px;background:#111;color:#fff;text-decoration:none">
+        Set your password
+      </a></p>
+      <p style="font-size:13px;color:#666">This link can only be used once and expires within 24 hours.
+      If it has expired, use "Forgot password" on the sign-in page.</p>
+    </div>`;
+}

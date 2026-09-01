@@ -91,13 +91,8 @@ export type TrackApplicationData = {
   } | null;
   period: { id: string; title: string; examStartDate: string; examEndDate: string } | null;
   exam: { id: string; title: string; passingScore: number } | null;
-  attempt: {
-    id: string;
-    status: string;
-    score: string | null;
-    totalMarks: number | null;
-    passed: boolean | null;
-  } | null;
+  // No score/passed: results are admin-only.
+  attempt: { id: string; status: string } | null;
 };
 
 export function trackApplication(applicationCode: string) {

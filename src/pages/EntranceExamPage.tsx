@@ -4,13 +4,11 @@ import Link from "@/lib/compat/link";
 import {
   AlertCircle,
   ArrowRight,
-  Award,
   CheckCircle2,
   Clock,
   FileText,
   Landmark,
   Search,
-  XCircle,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -194,13 +192,18 @@ export function EntranceExamPage() {
                     </div>
                   )}
 
-                  {tracked.attempt?.status === "graded" && tracked.attempt.score != null && tracked.attempt.passed != null && (
-                    <ExamResultSummary
-                      score={Number(tracked.attempt.score)}
-                      totalMarks={tracked.attempt.totalMarks ?? 100}
-                      passingScore={tracked.exam?.passingScore ?? 50}
-                      passed={tracked.attempt.passed}
-                    />
+                  {(tracked.attempt?.status === "submitted" || tracked.attempt?.status === "graded") && (
+                    <div className="rounded-lg border border-muted-foreground/20 bg-muted/10 p-4 print:hidden">
+                      <div className="flex items-start gap-2">
+                        <FileText className="mt-0.5 h-5 w-5 text-muted-foreground" />
+                        <div>
+                          <p className="font-medium text-foreground">Exam submitted</p>
+                          <p className="text-sm text-muted-foreground">
+                            Your answers have been recorded. Scores are not published here — the school will contact you.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </div>
               )}
@@ -430,28 +433,3 @@ function PublicExamDiscoverySection({ discovery }: { discovery: ExamDiscoveryDat
   );
 }
 
-function ExamResultSummary({ score, totalMarks, passingScore, passed }: { score: number; totalMarks: number; passingScore: number; passed: boolean }) {
-  const percentage = totalMarks > 0 ? Math.round((score / totalMarks) * 100) : 0;
-  return (
-    <div className="rounded-lg border border-muted-foreground/20 bg-muted/10 p-4 print:hidden">
-      <div className="flex items-start justify-between gap-3">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            {passed ? <Award className="h-5 w-5 text-emerald-500" /> : <XCircle className="h-5 w-5 text-red-400" />}
-            <p className="font-medium text-foreground">Exam result</p>
-            <StatusBadge status={passed ? "approved" : "rejected"} />
-          </div>
-          <div className="flex items-center gap-4 text-sm">
-            <span>
-              <span className="font-semibold tabular-nums">{score}</span>
-              <span className="text-muted-foreground">/{totalMarks}</span>
-            </span>
-            <span className="tabular-nums font-semibold">{percentage}%</span>
-            <span className="text-muted-foreground">(passing: {passingScore}%)</span>
-          </div>
-        </div>
-        <FileText className="h-5 w-5 text-muted-foreground" />
-      </div>
-    </div>
-  );
-}

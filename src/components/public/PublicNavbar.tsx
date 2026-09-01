@@ -75,13 +75,13 @@ export function PublicNavbar() {
         <div className="flex h-16 md:h-18 items-center justify-between gap-4">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2.5 shrink-0">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-brand-sm">
-              <BrandLogo />
+            <div className="flex h-11 w-11 md:h-12 md:w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-brand-sm">
+              <BrandLogo className="h-7 w-7 md:h-8 md:w-8" />
             </div>
-            <div className="hidden sm:block">
+            <div className="block">
               <p
                 className={cn(
-                  'font-serif font-semibold text-sm leading-tight transition-colors duration-500',
+                  'font-serif font-semibold text-base md:text-lg leading-tight transition-colors duration-500',
                   atHero ? 'text-white' : 'text-foreground',
                 )}
               >
@@ -89,7 +89,7 @@ export function PublicNavbar() {
               </p>
               <p
                 className={cn(
-                  'text-[10px] leading-tight tracking-wide uppercase transition-colors duration-500',
+                  'text-[11px] md:text-xs leading-tight tracking-wide uppercase transition-colors duration-500',
                   atHero ? 'text-white/70' : 'text-muted-foreground',
                 )}
               >

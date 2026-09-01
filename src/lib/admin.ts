@@ -514,9 +514,9 @@ export async function getAdminUsers(): Promise<AdminUser[]> {
 // Create another admin account. Runs through the `admin-create-user` Edge
 // Function (service role) — auth-user creation + profile insert need the
 // service role and can't happen on the browser client. Admin-gated server-side.
+// No password here: the function emails the new admin a link to set their own.
 export async function createAdminUser(input: {
   email: string;
-  password: string;
   firstName: string;
   lastName: string;
   phone?: string;

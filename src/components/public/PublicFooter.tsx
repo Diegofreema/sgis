@@ -46,7 +46,14 @@ export function PublicFooter() {
   useEffect(() => {
     let active = true;
     getPublicSchoolSettings()
-      .then((s) => active && setContact({ schoolEmail: s.schoolEmail, schoolPhone: s.schoolPhone }))
+      .then(
+        (s) =>
+          active &&
+          setContact({
+            schoolEmail: s.schoolEmail,
+            schoolPhone: s.schoolPhone,
+          }),
+      )
       .catch(() => {});
     return () => {
       active = false;
@@ -79,10 +86,26 @@ export function PublicFooter() {
             {/* Socials */}
             <div className="flex items-center gap-2">
               {[
-                { href: siteConfig.social.facebook, label: 'Facebook', short: 'f' },
-                { href: siteConfig.social.instagram, label: 'Instagram', short: null },
-                { href: siteConfig.social.twitter, label: 'X / Twitter', short: 'X' },
-                { href: siteConfig.social.linkedin, label: 'LinkedIn', short: 'in' },
+                {
+                  href: siteConfig.social.facebook,
+                  label: 'Facebook',
+                  short: 'f',
+                },
+                {
+                  href: siteConfig.social.instagram,
+                  label: 'Instagram',
+                  short: null,
+                },
+                {
+                  href: siteConfig.social.twitter,
+                  label: 'X / Twitter',
+                  short: 'X',
+                },
+                {
+                  href: siteConfig.social.linkedin,
+                  label: 'LinkedIn',
+                  short: 'in',
+                },
               ]
                 .filter(({ href }) => href)
                 .map(({ href, label, short }) => (
@@ -158,6 +181,12 @@ export function PublicFooter() {
                   className="text-sm text-muted-foreground hover:text-primary transition-colors"
                 >
                   {schoolPhone}
+                </a>
+                <a
+                  href={`tel:${schoolPhone}`}
+                  className="text-sm text-muted-foreground hover:text-primary transition-colors"
+                >
+                  +2349023453660
                 </a>
               </li>
               <li className="flex items-start gap-2.5">

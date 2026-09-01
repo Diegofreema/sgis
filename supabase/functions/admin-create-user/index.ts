@@ -3,9 +3,12 @@
 // API + profile insert bypassing RLS), so it can't live in the browser. The
 // caller's JWT is forwarded by supabase-js functions.invoke; we verify it maps
 // to an admin profile before doing anything.
-// Body: { email, password, firstName, lastName, phone? } → { userId }
+// Body: { email, firstName, lastName, phone? } → { userId }
+// No password is set by the caller: the account gets a throwaway random one and
+// the new admin receives a recovery link to choose their own.
 import { serviceClient } from "../_shared/client.ts";
 import { fail, handlePreflight, ok, serverError } from "../_shared/cors.ts";
+import { adminWelcomeEmailHtml, sendEmail } from "../_shared/email.ts";
 
 Deno.serve(async (req) => {
   const pre = handlePreflight(req);
@@ -30,19 +33,18 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
     const email = String(body?.email ?? "").trim().toLowerCase();
-    const password = String(body?.password ?? "");
     const firstName = String(body?.firstName ?? "").trim();
     const lastName = String(body?.lastName ?? "").trim();
     const phone = typeof body?.phone === "string" ? body.phone.trim() : "";
 
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return fail("A valid email is required.");
-    if (password.length < 8) return fail("Password must be at least 8 characters.");
     if (!firstName || !lastName) return fail("First and last name are required.");
 
-    // Create the auth user (email pre-confirmed so they can sign in at once).
+    // Create the auth user (email pre-confirmed). The password is random and
+    // never disclosed — the welcome email carries a link to set a real one.
     const { data: created, error: createErr } = await db.auth.admin.createUser({
       email,
-      password,
+      password: crypto.randomUUID() + crypto.randomUUID(),
       email_confirm: true,
     });
     if (createErr || !created?.user) {
@@ -88,7 +90,31 @@ Deno.serve(async (req) => {
       metadata: { email, role: "admin" },
     });
 
-    return ok({ userId: profile.id });
+    // Email is best-effort: the account already exists. The link drops the new
+    // admin on /reset-password, which already handles a recovery session.
+    try {
+      const siteUrl = (Deno.env.get("SITE_URL") ?? "").replace(/\/$/, "");
+      const { data: link, error: linkErr } = await db.auth.admin.generateLink({
+        type: "recovery",
+        email,
+        options: { redirectTo: `${siteUrl}/reset-password` },
+      });
+      if (linkErr || !link?.properties?.action_link) throw linkErr ?? new Error("No action link.");
+      await sendEmail({
+        to: email,
+        subject: "Set up your admin account",
+        html: adminWelcomeEmailHtml({
+          firstName,
+          email,
+          setupUrl: link.properties.action_link,
+        }),
+      });
+    } catch (mailError) {
+      console.error("[admin-create-user] invite email failed:", mailError);
+      return ok({ userId: profile.id, emailed: false });
+    }
+
+    return ok({ userId: profile.id, emailed: true });
   } catch (error) {
     return serverError("admin-create-user", error);
   }
