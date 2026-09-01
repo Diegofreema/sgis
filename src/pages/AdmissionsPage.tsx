@@ -6,6 +6,7 @@ import { AdmissionCTA } from '@/components/public/AdmissionCTA';
 
 const requirements = [
   'Completed online application form',
+  'Recent academic transcripts',
   'Passport photograph (digital)',
   'Birth certificate (copy)',
   'Medical fitness certificate',
@@ -79,10 +80,9 @@ export function AdmissionsPage() {
                     'Grade 6',
                     'Grade 7',
                     'Grade 8',
-                    'Grade 9',
+
                     'Grade 10',
                     'Grade 11',
-                    'Grade 12',
                   ].map((g) => (
                     <div
                       key={g}
