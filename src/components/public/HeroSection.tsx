@@ -56,7 +56,7 @@ const slides = [
     sub: { label: 'Contact Us', href: '/contact' },
   },
   {
-    image: '/facilities/ict-suite.webp',
+    image: '/facilities/ict.jpg',
     badge: 'ICT Suite · Digital Literacy',
     lines: ['Fluent in the', 'Language of'],
     accent: 'Technology',
@@ -65,7 +65,7 @@ const slides = [
     sub: { label: 'Apply Now', href: '/entrance-exam' },
   },
   {
-    image: '/facilities/chemistry-laboratory.webp',
+    image: '/facilities/chemistry.jpg',
     badge: 'Sciences · Chemistry Laboratory',
     lines: ['Science Learned', 'at the'],
     accent: 'Workbench',
@@ -74,7 +74,7 @@ const slides = [
     sub: { label: 'Apply Now', href: '/entrance-exam' },
   },
   {
-    image: '/facilities/physics-laboratory.webp',
+    image: '/facilities/physics.jpg',
     badge: 'Sciences · Physics Laboratory',
     lines: ['Understanding How', 'the World'],
     accent: 'Works',
@@ -83,7 +83,7 @@ const slides = [
     sub: { label: 'Apply Now', href: '/entrance-exam' },
   },
   {
-    image: '/facilities/biology-laboratory.webp',
+    image: '/facilities/biology.jpg',
     badge: 'Sciences · Biology Laboratory',
     lines: ['A Closer Look', 'at'],
     accent: 'Living Things',
@@ -92,7 +92,7 @@ const slides = [
     sub: { label: 'Apply Now', href: '/entrance-exam' },
   },
   {
-    image: '/facilities/fine-arts-studio.webp',
+    image: '/facilities/fine-arts.jpg',
     badge: 'Creative Arts · Fine Arts Studio',
     lines: ['Room to Create,', 'Space to'],
     accent: 'Imagine',
@@ -101,7 +101,7 @@ const slides = [
     sub: { label: 'Learn More', href: '/about' },
   },
   {
-    image: '/facilities/library.webp',
+    image: '/facilities/library.jpg',
     badge: 'Library & Research Centre',
     lines: ['Where Independent', 'Study'],
     accent: 'Begins',
