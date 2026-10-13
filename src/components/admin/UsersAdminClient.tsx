@@ -230,7 +230,7 @@ export function UsersAdminClient({ users: initialUsers, onCreated }: Props) {
           >
             <UserNameCell user={user} />
             <div className="flex items-center gap-3 shrink-0">
-              {user.role === "admin" && user.requiresPasswordChange && (
+              {isSuperAdmin && user.role === "admin" && user.requiresPasswordChange && (
                 <Button
                   variant="outline"
                   size="sm"

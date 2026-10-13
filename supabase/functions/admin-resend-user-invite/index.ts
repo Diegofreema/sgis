@@ -21,8 +21,8 @@ Deno.serve(async (req) => {
       .select("id, role")
       .eq("auth_user_id", authUser.id)
       .maybeSingle();
-    if (!actor || (actor.role !== "admin" && actor.role !== "super_admin")) {
-      return fail("Admin access required.", 403);
+    if (!actor || actor.role !== "super_admin") {
+      return fail("Super admin access required.", 403);
     }
 
     const body = await req.json();
@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
 
     await db.from("activity_logs").insert({
       actor_id: actor.id,
-      actor_role: "admin",
+      actor_role: "super_admin",
       action: "user.invite_resent",
       entity_type: "profile",
       entity_id: profile.id,
