@@ -144,12 +144,14 @@ export function UsersAdminClient({ users: initialUsers, onCreated }: Props) {
         </div>
 
         <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm">
-              <UserPlus className="h-4 w-4" />
-              Add admin
-            </Button>
-          </DialogTrigger>
+          {isSuperAdmin && (
+            <DialogTrigger asChild>
+              <Button size="sm">
+                <UserPlus className="h-4 w-4" />
+                Add admin
+              </Button>
+            </DialogTrigger>
+          )}
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Add admin</DialogTitle>

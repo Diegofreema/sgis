@@ -1,8 +1,8 @@
 // POST /functions/v1/admin-create-user
-// Admin-only: create another admin account. Needs the service role (auth admin
+// Super-admin-only: create another admin account. Needs the service role (auth admin
 // API + profile insert bypassing RLS), so it can't live in the browser. The
 // caller's JWT is forwarded by supabase-js functions.invoke; we verify it maps
-// to an admin profile before doing anything.
+// to a super-admin profile before doing anything.
 // Body: { email, firstName, lastName, phone? } → { userId }
 // No password is set by the caller: the account gets a throwaway random one and
 // the new admin receives a recovery link to choose their own.
@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
 
     const db = serviceClient();
 
-    // Verify the caller is an authenticated admin.
+    // Verify the caller is the authenticated super admin.
     const { data: userData } = await db.auth.getUser(token);
     const authUser = userData?.user;
     if (!authUser) return fail("Not authorized.", 401);
@@ -30,8 +30,8 @@ Deno.serve(async (req) => {
       .select("id, role")
       .eq("auth_user_id", authUser.id)
       .maybeSingle();
-    if (!actor || (actor.role !== "admin" && actor.role !== "super_admin")) {
-      return fail("Admin access required.", 403);
+    if (!actor || actor.role !== "super_admin") {
+      return fail("Super admin access required.", 403);
     }
 
     const body = await req.json();
@@ -86,7 +86,7 @@ Deno.serve(async (req) => {
     // so the table trigger skips it; record the acting admin here.
     await db.from("activity_logs").insert({
       actor_id: actor.id,
-      actor_role: "admin",
+      actor_role: "super_admin",
       action: "user.created",
       entity_type: "profile",
       entity_id: profile.id,
