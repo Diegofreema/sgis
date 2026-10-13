@@ -84,7 +84,7 @@ export async function login({
     await supabase.auth.signOut();
     return { success: false, error: "Your profile could not be found. Please contact support." };
   }
-  if (profile.role !== "admin") {
+  if (profile.role !== "admin" && profile.role !== "super_admin") {
     await supabase.auth.signOut();
     return { success: false, error: "Only admin accounts can sign in here." };
   }

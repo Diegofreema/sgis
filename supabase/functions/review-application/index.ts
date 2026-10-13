@@ -30,7 +30,9 @@ Deno.serve(async (req) => {
       .select("id, role")
       .eq("auth_user_id", authUser.id)
       .maybeSingle();
-    if (!reviewer || reviewer.role !== "admin") return fail("Admin access required.", 403);
+    if (!reviewer || (reviewer.role !== "admin" && reviewer.role !== "super_admin")) {
+      return fail("Admin access required.", 403);
+    }
 
     const body = await req.json();
     const applicationId = String(body?.applicationId ?? "");

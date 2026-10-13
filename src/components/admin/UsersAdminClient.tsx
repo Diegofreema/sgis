@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { Loader2, UserPlus, Users } from "lucide-react";
+import { Loader2, Mail, UserMinus, UserPlus, Users } from "lucide-react";
 import { toast } from "sonner";
-import { createAdminUser } from "@/lib/admin";
+import { createAdminUser, removeAdminUser, resendAdminInvite } from "@/lib/admin";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,11 +17,12 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { getInitials, formatDate } from "@/lib/utils";
+import { useAuthStore } from "@/store/auth-store";
 
 type UserRow = {
   id: string;
   authUserId: string;
-  role: "admin";
+  role: "admin" | "super_admin";
   firstName: string | null;
   lastName: string | null;
   email: string;
@@ -29,6 +30,7 @@ type UserRow = {
   state?: string | null;
   lga?: string | null;
   createdAt: string;
+  requiresPasswordChange: boolean;
 };
 
 type Props = { users: UserRow[]; onCreated?: () => void };
@@ -40,6 +42,9 @@ export function UsersAdminClient({ users: initialUsers, onCreated }: Props) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
+  const [resendingUserId, setResendingUserId] = useState<string | null>(null);
+  const [removingUserId, setRemovingUserId] = useState<string | null>(null);
+  const isSuperAdmin = useAuthStore((state) => state.profile?.role === "super_admin");
 
   const q = search.toLowerCase();
 
@@ -76,9 +81,38 @@ export function UsersAdminClient({ users: initialUsers, onCreated }: Props) {
       toast.error(result.error);
       return;
     }
-    toast.success("Admin created. A setup link has been emailed to them.");
+    if (result.data.emailed) toast.success("Admin created. Setup email sent.");
+    else toast.error("Admin created, but setup email could not be sent.");
     setForm(EMPTY_FORM);
     setOpen(false);
+    onCreated?.();
+  }
+
+  async function handleResend(user: UserRow) {
+    setResendingUserId(user.id);
+    const result = await resendAdminInvite(user.id);
+    setResendingUserId(null);
+    if (!result.success) {
+      toast.error(result.error);
+      return;
+    }
+    if (result.data.emailed) toast.success(`Setup email sent to ${user.email}.`);
+    else toast.error("Could not send setup email. Try again later.");
+  }
+
+  async function handleRemove(user: UserRow) {
+    const name = [user.firstName, user.lastName].filter(Boolean).join(" ") || user.email;
+    if (!window.confirm(`Remove admin access for ${name}? They will lose access to the admin console.`)) {
+      return;
+    }
+    setRemovingUserId(user.id);
+    const result = await removeAdminUser(user.id);
+    setRemovingUserId(null);
+    if (!result.success) {
+      toast.error(result.error);
+      return;
+    }
+    toast.success(`Admin access removed for ${user.email}.`);
     onCreated?.();
   }
 
@@ -194,7 +228,41 @@ export function UsersAdminClient({ users: initialUsers, onCreated }: Props) {
           >
             <UserNameCell user={user} />
             <div className="flex items-center gap-3 shrink-0">
-              <Badge className="bg-warning/20 text-warning">admin</Badge>
+              {user.role === "admin" && user.requiresPasswordChange && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleResend(user)}
+                  disabled={resendingUserId !== null}
+                  aria-label={`Resend setup email to ${user.email}`}
+                >
+                  {resendingUserId === user.id ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Mail className="h-4 w-4" />
+                  )}
+                  Resend email
+                </Button>
+              )}
+              <Badge className="bg-warning/20 text-warning">
+                {user.role === "super_admin" ? "super admin" : "admin"}
+              </Badge>
+              {isSuperAdmin && user.role === "admin" && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleRemove(user)}
+                  disabled={resendingUserId !== null || removingUserId !== null}
+                  aria-label={`Remove admin access for ${user.email}`}
+                >
+                  {removingUserId === user.id ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <UserMinus className="h-4 w-4" />
+                  )}
+                  Remove
+                </Button>
+              )}
               <span className="text-xs text-muted-foreground hidden sm:block">
                 {formatDate(user.createdAt)}
               </span>

@@ -9,6 +9,7 @@
 import { serviceClient } from "../_shared/client.ts";
 import { fail, handlePreflight, ok, serverError } from "../_shared/cors.ts";
 import { adminWelcomeEmailHtml, sendEmail } from "../_shared/email.ts";
+import { getSiteUrl } from "../_shared/site-url.ts";
 
 Deno.serve(async (req) => {
   const pre = handlePreflight(req);
@@ -29,7 +30,9 @@ Deno.serve(async (req) => {
       .select("id, role")
       .eq("auth_user_id", authUser.id)
       .maybeSingle();
-    if (!actor || actor.role !== "admin") return fail("Admin access required.", 403);
+    if (!actor || (actor.role !== "admin" && actor.role !== "super_admin")) {
+      return fail("Admin access required.", 403);
+    }
 
     const body = await req.json();
     const email = String(body?.email ?? "").trim().toLowerCase();
@@ -93,7 +96,7 @@ Deno.serve(async (req) => {
     // Email is best-effort: the account already exists. The link drops the new
     // admin on /reset-password, which already handles a recovery session.
     try {
-      const siteUrl = (Deno.env.get("SITE_URL") ?? "").replace(/\/$/, "");
+      const siteUrl = getSiteUrl(req);
       const { data: link, error: linkErr } = await db.auth.admin.generateLink({
         type: "recovery",
         email,

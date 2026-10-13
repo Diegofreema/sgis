@@ -489,7 +489,7 @@ export async function deleteStaffMember(id: string): Promise<ActionResult> {
 export type AdminUser = {
   id: string;
   authUserId: string;
-  role: "admin";
+  role: "admin" | "super_admin";
   firstName: string | null;
   lastName: string | null;
   email: string;
@@ -497,15 +497,16 @@ export type AdminUser = {
   state: string | null;
   lga: string | null;
   createdAt: string;
+  requiresPasswordChange: boolean;
 };
 
 export async function getAdminUsers(): Promise<AdminUser[]> {
   const { data, error } = await supabase
     .from("profiles")
     .select(
-      "id, authUserId:auth_user_id, role, firstName:first_name, lastName:last_name, email, phone, state, lga, createdAt:created_at",
+      "id, authUserId:auth_user_id, role, firstName:first_name, lastName:last_name, email, phone, state, lga, createdAt:created_at, requiresPasswordChange:requires_password_change",
     )
-    .eq("role", "admin")
+    .in("role", ["admin", "super_admin"])
     .order("created_at", { ascending: false });
   if (error) throw error;
   return (data as unknown as AdminUser[]) ?? [];
@@ -520,7 +521,7 @@ export async function createAdminUser(input: {
   firstName: string;
   lastName: string;
   phone?: string;
-}): Promise<ActionResult> {
+}): Promise<ActionResult<{ emailed: boolean }>> {
   const { data, error } = await supabase.functions.invoke("admin-create-user", { body: input });
   if (error) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -529,6 +530,36 @@ export async function createAdminUser(input: {
   }
   if (data && data.success === false) {
     return { success: false, error: data.error ?? "Could not create the admin." };
+  }
+  return { success: true, data: { emailed: data?.data?.emailed === true } };
+}
+
+export async function resendAdminInvite(userId: string): Promise<ActionResult<{ emailed: boolean }>> {
+  const { data, error } = await supabase.functions.invoke("admin-resend-user-invite", {
+    body: { userId },
+  });
+  if (error) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const ctxBody = await (error as any)?.context?.json?.().catch(() => null);
+    return { success: false, error: ctxBody?.error ?? error.message ?? "Could not resend the email." };
+  }
+  if (data && data.success === false) {
+    return { success: false, error: data.error ?? "Could not resend the email." };
+  }
+  return { success: true, data: { emailed: data?.data?.emailed === true } };
+}
+
+export async function removeAdminUser(userId: string): Promise<ActionResult> {
+  const { data, error } = await supabase.functions.invoke("admin-remove-user", {
+    body: { userId },
+  });
+  if (error) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const ctxBody = await (error as any)?.context?.json?.().catch(() => null);
+    return { success: false, error: ctxBody?.error ?? error.message ?? "Could not remove the admin." };
+  }
+  if (data && data.success === false) {
+    return { success: false, error: data.error ?? "Could not remove the admin." };
   }
   return { success: true, data: undefined };
 }

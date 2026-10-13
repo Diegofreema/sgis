@@ -205,7 +205,7 @@ const adminLayoutRoute = createRoute({
   errorComponent: AdminError,
   beforeLoad: async () => {
     const profile = await getCurrentProfile();
-    if (!profile || profile.role !== "admin") {
+    if (!profile || (profile.role !== "admin" && profile.role !== "super_admin")) {
       throw redirect({ to: "/login" });
     }
     // Admin-provisioned accounts must set their own password first.
